@@ -1,6 +1,6 @@
 import pytest
 
-from ima.engine.utils import give_hint
+from ima.utils import download_file, give_hint
 
 def test_give_hint_google():
     page = open('./html/google_index.html')
@@ -17,3 +17,8 @@ def test_give_hint_yahoo():
     page = open('./html/yahoo_index.html')
     link = give_hint(page = page, tag_content = '2')
     assert 'https://search.yahoo.com/search?p=images+of+naruto&b=8&pz=7&bct=0&pstart=2' == link
+
+def test_download_file():
+    download_file('http://localhost:3000/assets/image.jpg')
+
+test_download_file()

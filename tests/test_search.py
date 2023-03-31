@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import pytest
-from ima.engine.search import Search
+from ima.search import Search
 
 sear = Search(engine = 'google', query = 'images of madara')
 

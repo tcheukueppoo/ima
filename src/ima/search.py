@@ -110,7 +110,7 @@ class Search:
             },
         }
 
-        hint = get_hint(page = self.page, **misc[sense][self.engine])
+        hint = give_hint(page = self.page, **misc[sense][self.engine])
         if hint is None:
             error = """
                 UnexpectedError: possible issues might be

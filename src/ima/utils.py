@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import re
+import re, requests
 from bs4 import BeautifulSoup
+from requests.models import RequestEncodingMixin
 
 def give_hint(**kargs):
     action       = kargs.get('action')
@@ -33,10 +34,8 @@ def give_hint(**kargs):
     elif tag_content is not None:
         for a in dom.find_all('a'):
             href = a.get('href')
-            if href is None or a.string is None:
-                continue
-            if re.match(tag_content, a.string):
-                return href
+            if href is None or a.string is None: continue
+            if re.match(tag_content, a.string):  return href
     return None
 
 def prepend_base_url(base_url, href):
@@ -46,3 +45,22 @@ def prepend_base_url(base_url, href):
         return base_url + href
     elif re.match('//', href):
         return re.sub('//', '', href)
+
+def download_file(link, **kargs):
+    headers  = kargs.get('header')
+    path     = kargs.get('path', '.')
+    filename = kargs.get('filename')
+    client   = kargs.get('client', requests)
+
+    response = client.get(link, stream = True)
+    if response.status_code != client.codes.ok:
+        raise Exception('HTTPResponseError: status code:', response.status_code)
+
+    if filename is None:
+        if matched := re.match('attachment; filename="(.+)"', response.headers.get('content-disposition', '')):
+            filename = matched.group(1)
+        else:
+            filename = re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
+    with open(re.match('(.+[^/])/*$').group(1) + '/' + filename, 'wb') as fd:
+        for chunk in response.iter_content(chunk_size = 128):
+            fd.write(chunk)
