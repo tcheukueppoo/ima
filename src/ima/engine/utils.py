@@ -1,35 +1,48 @@
 #!/usr/bin/env python
 
-import re, requests
+import re
 from bs4 import BeautifulSoup
 
-def goto(**kargs):
-    form_index   = kargs.get('form_index', 1)
-    submit_value = kargs.get('submit_value', '')
-    tag_regex    = kargs.get('content_like')
-    content      = kargs.get('content')
+def give_hint(**kargs):
+    action       = kargs.get('action')
+    tag_content  = kargs.get('tag_content')
+    page         = kargs.get('page')
+    submit_value = kargs.get('submit_value')
 
-    if content is None: return
-
-    dom = BeautifulSoup(content, 'html.parser')
-    if tag_regex is not None:
-        for a in dom.find_all('a'):
-            href = a.get('href')
-            if re.match(tag_regex, a.stripped_string):
-                return href
-    elif form_index is not None or submit_value is not None:
+    if page is None: return
+    dom = BeautifulSoup(page, 'html.parser')
+    if action is not None:
         index        = 0
         post_data    = {}
         valid_submit = False
+
         for form in dom.find_all('form'):
             index += 1
-            post_data = {}
-            if index < form_index: continue
+            if not re.match(action, form['action']): continue
+            post_data['action']  = form['action']
+            post_data['payload'] = {}
+            if submit_value is None: valid_submit = True
             for input in form.contents:
-                if input['type'] == 'submit' and re.match(submit_value, input['name']):
+                if input.name != 'input' or input.get('name') is None: continue
+                if submit_value is not None and input.get('type') == 'submit' and re.match(submit_value, input.get('name')):
                     valid_submit = True
-                if input.name == 'input' and input['type'] != 'submit':
-                    post_data[input['name']] = input['value']
+                    continue
+                post_data['payload'][input.get('name')] = input.get('value')
             if valid_submit is True: break
         return post_data
+    elif tag_content is not None:
+        for a in dom.find_all('a'):
+            href = a.get('href')
+            if href is None or a.string is None:
+                continue
+            if re.match(tag_content, a.string):
+                return href
     return None
+
+def prepend_base_url(base_url, href):
+    if re.match('https?://', href):
+        return href
+    elif re.match('/[^/]', href):
+        return base_url + href
+    elif re.match('//', href):
+        return re.sub('//', '', href)

@@ -76,7 +76,7 @@ expected_links = [
 ]
 
 def test_url_operations():
-    assert sear.set_engine('duckduckgo').url == 'https://duckduckgo.com/html/?q=images+of+naruto'
+    assert sear.set_engine('duckduckgo').url                == 'https://duckduckgo.com/html/?q=images+of+naruto'
     assert sear.set_query('naruto').set_engine('yahoo').url == 'https://search.yahoo.com/search/?p=naruto'
 
 def test_extract_links():
@@ -95,6 +95,5 @@ def test_extract_links():
     #assert all([ links == expected_links for a, b in zip(links, expected_links) ])
 
 def test_next():
-    for i in sear.next(): print(i)
+    for link in sear.next(): print(link)
 
-test_next()

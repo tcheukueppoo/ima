@@ -4,7 +4,7 @@ import re, requests
 
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
-from .utils       import goto
+from .utils       import give_hint
 
 class Search:
     search_urls = {
@@ -33,6 +33,10 @@ class Search:
         self.session = requests.Session()
         Search.check_engine(self.engine)
         self.url = Search.get_url(self.engine, self.query)
+        self._set_base_url()
+
+    def _set_base_url(self):
+        self.base_url = re.match('[^/]+', Search.search_urls[self.engine]).group()
 
     def set_query(self, query):
         self.query = query
@@ -43,6 +47,7 @@ class Search:
         Search.check_engine(engine)
         self.engine = engine
         self.url    = Search.get_url(self.engine, self.query)
+        self._set_base_url()
         return self
 
     def set_url(self, url):
@@ -78,35 +83,76 @@ class Search:
                     if not url in urls: urls.append(url)
         return urls
 
+    def _load_page(self, hint):
+        if isinstance(hint, dict):
+            hint['action'] = prepend_base_url(self.base_url, hint['action'])
+            response = self.session.post(hint['action'], data = hint['payload'], headers = Search.headers)
+        elif isinstance(hint, str):
+            hint = self._prepend_base_url(hint)
+            response = self.session.get(hint, headers = Search.headers)
+
+        if isinstance(response, requests.Response) and response.status_code == requests.codes.ok:
+            self.page = response.text
+            return True
+        return False
+
+    def _give_hint(self, sense):
+        misc = {
+            'next': {
+                'google':     { 'tag_content': 'Next' },
+                'duckduckgo': { 'submit_value': 'Next', 'action': '/html' },
+                'yahoo':      { 'index': self.index + 1 },
+            },
+            'previous': {
+                'google':     { 'tag_content': 'Previous' },
+                'duckduckgo': { 'submit_value': 'Previous', 'action': '/html' },
+                'yahoo':      { 'index': self.index - 1 },
+            },
+        }
+
+        hint = get_hint(page = self.page, **misc[sense][self.engine])
+        if hint is None:
+            error = """
+                UnexpectedError: possible issues might be
+                 1. Reached the end of the page
+                 3. Code isn't familiar with the page structure, needs to adapt
+            """
+            raise Exception(error)
+        return hint
+
     def next(self):
         if self.index == 1:
-            response  = self.session.get(self.url, headers = Search.headers)
+            response = self.session.get(self.url, headers = Search.headers)
             if response.status_code == requests.codes.ok:
                 self.page = response.text
-                return self._extract_links()
             else:
-                return None
-
-        target_content = 'Suivant|Next'
-        if self.engine == 'google' or self.engine == 'yahoo':
-            hint = goto(tag_regex = target_content, content = self.page)
+                raise Exception("FetchError: couldn't fetch the first page")
         else:
-            hint = goto(submit_value = target_content, content = self.page)
-        if hint is None: return None
-
-        if isinstance(hint, dict):
-            response = self.session.post(hint[post], data = hint[payload], headers = Search.headers)
-        elif isinstance(hint, str):
-            response = self.session.get(link, headers = Search.headers)
-
-        if response.status_code == requests.codes.ok:
-            self.page = response.text
-            self.index += 1
-            return self._extract_links()
-        return None
+            self._load_page(self._give_hint('next'))
+        self.index += 1
+        return self._extract_links()
 
     def previous(self):
-        pass
+        if self.index == 1:
+            raise Exception('OutOfBoundError: already at the start page')
+        else:
+            self._load_page(self._give_hint('previous'))
+        self.index -= 1
+        return self._extract_links()
 
-    def get_links(self, count):
-        pass
+    def get_nlinks(self, **kargs):
+        count = kargs.get('count', 1)
+        if count < 1: raise Exception('countError: number of links to fetch must be > 0')
+
+        links        = []
+        current_trys = 0
+        start        = kargs.get('start', True)
+        trys         = kargs.get('trys', 2)
+
+        if start is True: self.index = 1
+        while len(links) < count or current_trys < trys:
+            try:
+                links += self.next()
+            except:
+                current_trys += 1
+        return links if len(links) < count else links[0:count]
