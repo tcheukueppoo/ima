@@ -28,7 +28,7 @@ class Image:
         content     = get_content[tag]
         url         = tag_object.get(attribute)
 
-        if content is None or url is None or re.match('#', url): return None
+        if content is None or len(content) == 0 or url is None or re.match('#', url): return None
         #if self.is_image(url) is False: return None
         return {
             'content': content,
@@ -48,12 +48,22 @@ class Image:
                     links.append(link)
 
         def sort_key(l): return l['score']
-        score_links(links).sort(key = sort_key, reverse = True)
+        links = score_links(links)
         # NOTE: Get unique links *after* scoring!
         uniq_links = []
-        for i in range(0, len(uni_links)):
-            pass
+        while True:
+            i         = 1
+            uniq_link = links.pop(0)
+            while i < len(links):
+                if links[i]['url'] == uniq_link['url']:
+                    candidate = links.pop(i)
+                    if candidate['score'] > uniq_link['score']:
+                        uniq_link = candidate
+                i += 1
+            uniq_links.append(uniq_link)
+            if len(links) == 0: break
          
+        uniq_links.sort(key = sort_key, reverse = True)
         return uniq_links if len(uniq_links) <= count else uniq_links[0:count]
 
     def download_from(self, link, **kargs):
