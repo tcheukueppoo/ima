@@ -4,7 +4,10 @@ import re, requests
 
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
+from .image       import Image
 from .utils       import give_hint
+from base64       import b64decode, b64encode, b64encode
+from os           import curdir, getenv, makedirs, sep
 
 class Search:
     search_urls = {
@@ -26,21 +29,25 @@ class Search:
         return 'https://' + Search.search_urls[engine].format(query.replace(' ', '+'))
 
     def __init__(self, **kargs):
-        self.page    = ''
-        self.query   = kargs.get('query', '')
-        self.engine  = kargs.get('engine', 'google')
-        self.index   = kargs.get('index', 1)
-        self.session = requests.Session()
+        self.engine = kargs.get('engine', 'google')
         Search.check_engine(self.engine)
-        self.url = Search.get_url(self.engine, self.query)
+
+        self.query = kargs.get('query', '')
+        self.url   = Search.get_url(self.engine, self.query)
         self._set_base_url()
 
+        self.page      = ''
+        self.index     = kargs.get('index', 1)
+        self.save      = kargs.get('save', True)
+        self.save_path = kargs.get('save_path', getenv('HOME', curdir))
+        self.session   = requests.Session()
+
     def _set_base_url(self):
-        self.base_url = re.match('[^/]+', Search.search_urls[self.engine]).group()
+        self.base_url = re.match(r'(.+?)(?<!/)/(?!/)', Search.search_urls[self.engine]).group(1)
 
     def set_query(self, query):
         self.query = query
-        self.url = Search.get_url(self.engine, self.query)
+        self.url   = Search.get_url(self.engine, self.query)
         return self
 
     def set_engine(self, engine):
@@ -62,9 +69,9 @@ class Search:
     def _extract_links(self):
         urls        = []
         query_regex = {
-            'google'    : re.compile('imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*google\.com)[^&]+'),
-            'duckduckgo': re.compile('uddg=https?[^&]+'),
-            'yahoo'     : re.compile('https?://(?!(?:\w+\.)*yahoo\.com)'),
+            'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*google\.com)[^&]+',
+            'duckduckgo': r'uddg=https?[^&]+',
+            'yahoo'     : r'https?://(?!(?:\w+\.)*yahoo\.com)',
         }
 
         dom = BeautifulSoup(self.page, 'html.parser')
@@ -120,7 +127,7 @@ class Search:
             raise Exception(error)
         return hint
 
-    def next(self):
+    def next(self, **kargs):
         if self.index == 1:
             response = self.session.get(self.url, headers = Search.headers)
             if response.status_code == requests.codes.ok:
@@ -129,23 +136,30 @@ class Search:
                 raise Exception("FetchError: couldn't fetch the first page")
         else:
             self._load_page(self._give_hint('next'))
+        save = kargs.get('save', self.save)
         self.index += 1
-        return self._extract_links()
+        links = self._extract_links()
+        if save: self._save(links)
+        return links
 
-    def previous(self):
+    def previous(self, **kargs):
         if self.index == 1:
             raise Exception('OutOfBoundError: already at the start page')
         else:
             self._load_page(self._give_hint('previous'))
+        save = kargs.get('save', self.save)
         self.index -= 1
-        return self._extract_links()
+        links = self._extract_links()
+        if save: self._save(links)
+        return links
 
     def get_nlinks(self, **kargs):
         count = kargs.get('count', 1)
-        if count < 1: raise Exception('countError: number of links to fetch must be > 0')
+        if count < 1: raise Exception('CountError: number of links to fetch must be > 0')
 
-        links        = []
         current_trys = 0
+        links        = []
+        save         = kargs.get('save', self.save)
         start        = kargs.get('start', True)
         trys         = kargs.get('trys', 2)
 
@@ -155,4 +169,29 @@ class Search:
                 links += self.next()
             except:
                 current_trys += 1
-        return links if len(links) < count else links[0:count]
+        links = links if len(links) < count else links[0:count]
+        if save: self._save(links)
+        return links
+
+    def _save(self, links):
+        makedirs(self.save_path)
+        file     = re.match('(.+)' + sep + '?$', self.save_path).group(1) + sep + '.ima_cache'
+        tmp_file = file + '_tmp'
+        with open(tmp_file, 'w') as tmp_fd, open(file, 'r') as fd:
+            while record := fd.readline():
+                query, link, frequency = re.split(',', record)
+                query = b64decode(query)
+                link  = b64decode(link)
+                exists = False
+                for i in range(0, len(links)):
+                    if link == links[i] and self.query == query:
+                        frequency += 1
+                        tmp_fd.write(b64encode(query) + ',' + b64encode(link) + ',' + frequency)
+                        links.pop(i)
+                        exists = True
+                if not exists: tmp_fd.write(record)
+            for link in links:
+                tmp.fd.write(b64encode(query), + ',' + b64encode(link) + ',1')
+        unlink(file)
+        rename(tmp_file, file)
+        

@@ -10,6 +10,22 @@ class Image:
         self.page     = kargs.get('page', '')
         self.subject  = kargs.get('subject')
 
+    @staticmethod
+    def _uniquefy_links(links):
+        uniq_links = []
+        while True:
+            i         = 1
+            uniq_link = links.pop(0)
+            while i < len(links):
+                if links[i]['url'] == uniq_link['url']:
+                    candidate = links.pop(i)
+                    if candidate['score'] > uniq_link['score']:
+                        uniq_link = candidate
+                i += 1
+            uniq_links.append(uniq_link)
+            if len(links) == 0: break
+        return uniq_links
+
     def is_image(self, link, **kargs):
         session  = kargs.get('session', requests.session())
         response = session.head(link)
@@ -29,14 +45,17 @@ class Image:
         url         = tag_object.get(attribute)
 
         if content is None or len(content) == 0 or url is None or re.match('#', url): return None
-        #if self.is_image(url) is False: return None
+        url = prepend_base_url(self.base_url, url)
+        if self.is_image(url) is False: return None
         return {
             'content': content,
-            'url'    : prepend_base_url(self.base_url, url),
+            'url'    : url,
             'score'  : 0
         }
 
     def get_links(self, **kargs):
+        if self.page is None:
+            raise Exception('PageIsNone: cannot fetch image links, page is None')
         links       = []
         score_links = kargs.get('score_with', self._builtin_score)
         count       = kargs.get('count', inf)
@@ -47,22 +66,10 @@ class Image:
                 if (link := self._get_link(tag_object, *tag_attribute)) is not None:
                     links.append(link)
 
-        def sort_key(l): return l['score']
-        links = score_links(links)
         # NOTE: Get unique links *after* scoring!
-        uniq_links = []
-        while True:
-            i         = 1
-            uniq_link = links.pop(0)
-            while i < len(links):
-                if links[i]['url'] == uniq_link['url']:
-                    candidate = links.pop(i)
-                    if candidate['score'] > uniq_link['score']:
-                        uniq_link = candidate
-                i += 1
-            uniq_links.append(uniq_link)
-            if len(links) == 0: break
-         
+        links = Image._uniquefy_links(score_links(links))
+        
+        def sort_key(l): return l['score']
         uniq_links.sort(key = sort_key, reverse = True)
         return uniq_links if len(uniq_links) <= count else uniq_links[0:count]
 

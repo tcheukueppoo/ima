@@ -39,9 +39,12 @@ def give_hint(**kargs):
     return None
 
 def prepend_base_url(base_url, href):
-    if re.match('https?://', href): return href
-    elif re.match('/[^/]', href):   return base_url + href
-    elif re.match('//', href):      return re.sub('//', '', href)
+    if re.match('https?', href):
+        return href
+    elif re.match('//', href):
+        return re.sub('//', '', href)
+    elif re.match('/[^/]|#|\?', href):
+        return base_url + '/' + re.match('/?(.+)', href).group(1)
 
 def download_file(link, **kargs):
     headers  = kargs.get('header')
