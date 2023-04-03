@@ -5,7 +5,7 @@ import re, requests
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from .image       import Image
-from .utils       import give_hint
+from .utils       import give_hint, get_base_url
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
@@ -29,6 +29,7 @@ class Search:
     def get_url(engine, query):
         return 'https://' + Search.search_urls[engine].format(query.replace(' ', '+'))
 
+
     def __init__(self, **kargs):
         self.engine = kargs.get('engine', 'google')
         Search.check_engine(self.engine)
@@ -45,7 +46,7 @@ class Search:
         self._set_save_file()
 
     def _set_base_url(self):
-        self.base_url = re.match(r'(.+?)(?<!/)/(?!/)', Search.search_urls[self.engine]).group(1)
+        self.base_url = get_base_url(Search.search_urls[self.engine])
 
     def _set_save_file(self):
         if S_ISREG(stat(self.save_path)[0]):
@@ -135,19 +136,25 @@ class Search:
             raise Exception(error)
         return hint
 
+    def convert_links_to_image_objects(self, links):
+        for link in links:
+            yield Image(subject = self.query, page = self.session.get(link).text, base_url = get_base_url(link))
+
     def next(self, **kargs):
         if self.index == 1:
             response = self.session.get(self.url, headers = Search.headers)
             if response.status_code == requests.codes.ok:
                 self.page = response.text
             else:
-                raise Exception("FetchError: couldn't fetch the first page")
+                raise Exception("HTTPResponseError: couldn't fetch the first page")
         else:
             self._load_page(self._give_hint('next'))
-        save = kargs.get('save', self.save)
+        save     = kargs.get('save', self.save)
+        as_image = kargs.get('as_image', False)
         self.index += 1
         links = self._extract_links()
         if save: self._save(links)
+        if as_image: return self.convert_links_to_image_objects(links)
         return links
 
     def previous(self, **kargs):
@@ -155,10 +162,12 @@ class Search:
             raise Exception('OutOfBoundError: already at the start page')
         else:
             self._load_page(self._give_hint('previous'))
-        save = kargs.get('save', self.save)
+        save     = kargs.get('save', self.save)
+        as_image = kargs.get('as_image', False)
         self.index -= 1
         links = self._extract_links()
         if save: self._save(links)
+        if as_image: return self.convert_links_to_image_objects(links)
         return links
 
     def get_nlinks(self, **kargs):
@@ -170,6 +179,7 @@ class Search:
         save         = kargs.get('save', self.save)
         start        = kargs.get('start', True)
         trys         = kargs.get('trys', 2)
+        as_image     = kargs.get('as_image', False)
 
         if start is True: self.index = 1
         while len(links) < count or current_trys < trys:
@@ -179,6 +189,7 @@ class Search:
                 current_trys += 1
         links = links if len(links) < count else links[0:count]
         if save: self._save(links)
+        if as_image: return self.convert_links_to_image_objects(links)
         return links
 
     def _save(self, links):

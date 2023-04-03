@@ -46,6 +46,9 @@ def prepend_base_url(base_url, href):
     elif re.match('/[^/]|#|\?', href):
         return base_url + '/' + re.match('/?(.+)', href).group(1)
 
+def get_base_url(link):
+    return re.match(r'(.+?)(?<!/)/(?!/)', link).group(1)
+
 def download_file(link, **kargs):
     headers  = kargs.get('header')
     path     = kargs.get('path', '.')
