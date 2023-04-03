@@ -6,8 +6,9 @@ from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from .image       import Image
 from .utils       import give_hint
-from base64       import b64decode, b64encode, b64encode
-from os           import curdir, getenv, makedirs, sep
+from base64       import b64decode, b64encode
+from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
+from stat         import S_ISREG
 
 class Search:
     search_urls = {
@@ -39,11 +40,18 @@ class Search:
         self.page      = ''
         self.index     = kargs.get('index', 1)
         self.save      = kargs.get('save', True)
-        self.save_path = kargs.get('save_path', getenv('HOME', curdir))
         self.session   = requests.Session()
+        self.save_path = kargs.get('save_path', getenv('HOME', curdir))
+        self._set_save_file()
 
     def _set_base_url(self):
         self.base_url = re.match(r'(.+?)(?<!/)/(?!/)', Search.search_urls[self.engine]).group(1)
+
+    def _set_save_file(self):
+        if S_ISREG(stat(self.save_path)[0]):
+            self.save_file = self.save_path
+            return
+        self.save_file = re.match('(.+)' + sep + '?$', self.save_path).group(1) + sep + '.ima_cache'
 
     def set_query(self, query):
         self.query = query
@@ -174,24 +182,43 @@ class Search:
         return links
 
     def _save(self, links):
-        makedirs(self.save_path)
-        file     = re.match('(.+)' + sep + '?$', self.save_path).group(1) + sep + '.ima_cache'
+        file     = self.save_file
         tmp_file = file + '_tmp'
+
+        makedirs(self.save_path)
         with open(tmp_file, 'w') as tmp_fd, open(file, 'r') as fd:
             while record := fd.readline():
                 query, link, frequency = re.split(',', record)
-                query = b64decode(query)
-                link  = b64decode(link)
+                query  = b64decode(query)
+                link   = b64decode(link)
                 exists = False
-                for i in range(0, len(links)):
+                i      = 0
+                while i < len(links):
                     if link == links[i] and self.query == query:
-                        frequency += 1
-                        tmp_fd.write(b64encode(query) + ',' + b64encode(link) + ',' + frequency)
+                        frequency = str(int(frequency) + 1)
+                        tmp_fd.write(str(b64encode(query)) + ',' + str(b64encode(link)) + ',' + frequency)
                         links.pop(i)
                         exists = True
+                    i += 1
                 if not exists: tmp_fd.write(record)
             for link in links:
-                tmp.fd.write(b64encode(query), + ',' + b64encode(link) + ',1')
+                tmp_fd.write(str(b64encode(self.query)) + ',' + str(b64encode(link)) + ',1')
         unlink(file)
         rename(tmp_file, file)
-        
+
+    def query_saves(self, **kargs):
+        query      = kargs.get('query')
+        query_like = kargs.get('query_like')
+        frequency  = kargs.get('frequency')
+
+        matched = []
+        with open(self.save_file, 'r') as fd:
+            while record := fd.readline():
+                splited    = re.split(',', record)
+                splited[0] = b64decode(splited[0])
+                splited[1] = b64decode(splited[1])
+                if query and splited[0] != query: continue
+                if query_like and not re.match(query_like, splited[0]): continue
+                if frequency and frequency != splited[2]: continue
+                matched += splited[1]
+        return matched
