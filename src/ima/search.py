@@ -76,18 +76,6 @@ class Search:
             return bytearray.fromhex(match.group(1)).decode()
         return re.sub(r'%([a-fA-F0-9]{2})', replace, url)
 
-    def _filter_out_to_share_urls(self, urls):
-        print(urls)
-        exit(1)
-        share_urls = {
-            'twitter' : [ 'https://twitter.com/intent?',            'url'  ],
-            'linkedin': [ 'https://www.facebook.com/dialog/feed?',  'link' ],
-            'facebook': [ 'https://www.linkedin.com/shareArticle?', 'url'  ],
-        }
-
-        return urls
-                    
-
     def _extract_links(self):
         urls       = set()
         dom        = BeautifulSoup(self.page, 'html.parser')
@@ -103,17 +91,13 @@ class Search:
             if href is None: continue
 
             if self.engine == 'yahoo':
-                if matched := re.match(not_yahoo, href):
-                    urls.add(href)
-                elif matched := re.match(href_regex[self.engine], href):
+                if matched := re.match(href_regex[self.engine], href):
                     url = self._decode_url(matched.group(1))
                     if re.match(not_yahoo, url):
                         urls.add(url)
-                urls = self._filter_out_to_share_urls(urls)
                 continue
 
-            query = parse_url(href).query
-            if query is not None:
+            if query := parse_url(href).query:
                 if matched := re.search(href_regex[self.engine], query):
                     urls.add(self._decode_url(matched.group().split('=')[1]))
         return urls
@@ -145,22 +129,16 @@ class Search:
                 'yahoo':      { 'index': self.index - 1 },
             },
         }
-
-        hint = give_hint(page = self.page, **misc[sense][self.engine])
-        if hint is None:
-            error = """
-                UnexpectedError: possible issues might be
-                 1. Reached the end of the page
-                 3. Code isn't familiar with the page structure, needs to adapt
-            """
-            raise Exception(error)
-        return hint
+        return give_hint(page = self.page, **misc[sense][self.engine])
 
     def convert_links_to_image_objects(self, links):
         for link in links:
             yield Image(subject = self.query, page = self.session.get(link).text, base_url = get_base_url(link))
 
     def next(self, **kargs):
+        save     = kargs.get('save', self.save)
+        as_image = kargs.get('as_image', False)
+
         if self.index == 1:
             response = self.session.get(self.url, headers = Search.headers)
             if response.status_code == requests.codes.ok:
@@ -168,26 +146,27 @@ class Search:
             else:
                 raise Exception("HTTPResponseError: couldn't fetch the first page")
         else:
-            self._load_page(self._give_hint('next'))
-        save     = kargs.get('save', self.save)
-        as_image = kargs.get('as_image', False)
+            hint = self._give_hint('next')
+            if hint is None or self._load_page(hint) is False: return None
+
         self.index += 1
         links = self._extract_links()
         if save: self._save(links)
         if as_image: return self.convert_links_to_image_objects(links)
+
         return links
 
     def previous(self, **kargs):
-        if self.index == 1:
-            raise Exception('OutOfBoundError: already at the start page')
-        else:
-            self._load_page(self._give_hint('previous'))
         save     = kargs.get('save', self.save)
         as_image = kargs.get('as_image', False)
+
+        if self.index == 1: return None
+        self._load_page(self._give_hint('previous'))
         self.index -= 1
         links = self._extract_links()
         if save: self._save(links)
         if as_image: return self.convert_links_to_image_objects(links)
+
         return links
 
     def get_nlinks(self, **kargs):
@@ -203,11 +182,13 @@ class Search:
 
         if start is True: self.index = 1
         while len(links) < count or current_trys < trys:
-            try:
-                links += self.next()
-            except:
+            new_links = self.next()
+            if is None:
                 current_trys += 1
-        links = links if len(links) < count else links[0:count]
+                continue
+            links += new_links
+
+        links = links[0:count]
         if save: self._save(links)
         if as_image: return self.convert_links_to_image_objects(links)
         return links
@@ -263,3 +244,4 @@ class Search:
                 if frequency and frequency != splited[2]: continue
                 matched += splited[1]
         return matched
+
