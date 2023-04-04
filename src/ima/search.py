@@ -5,7 +5,7 @@ import re, requests
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from .image       import Image
-from .utils       import give_hint, get_base_url
+from .utils       import give_hint, get_base_url, prepend_base_url
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
@@ -61,6 +61,7 @@ class Search:
 
     def set_engine(self, engine):
         Search.check_engine(engine)
+        self.index  = 1
         self.engine = engine
         self.url    = Search.get_url(self.engine, self.query)
         self._set_base_url()
@@ -75,28 +76,46 @@ class Search:
             return bytearray.fromhex(match.group(1)).decode()
         return re.sub(r'%([a-fA-F0-9]{2})', replace, url)
 
-    def _extract_links(self):
-        urls        = []
-        query_regex = {
-            'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*google\.com)[^&]+',
-            'duckduckgo': r'uddg=https?[^&]+',
-            'yahoo'     : r'https?://(?!(?:\w+\.)*yahoo\.com)',
+    def _filter_out_to_share_urls(self, urls):
+        print(urls)
+        exit(1)
+        share_urls = {
+            'twitter' : [ 'https://twitter.com/intent?',            'url'  ],
+            'linkedin': [ 'https://www.facebook.com/dialog/feed?',  'link' ],
+            'facebook': [ 'https://www.linkedin.com/shareArticle?', 'url'  ],
         }
 
-        dom = BeautifulSoup(self.page, 'html.parser')
+        return urls
+                    
+
+    def _extract_links(self):
+        urls       = set()
+        dom        = BeautifulSoup(self.page, 'html.parser')
+        not_yahoo  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
+        href_regex = {
+            'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
+            'duckduckgo': r'uddg=https?[^&]+',
+            'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
+        }
+
         for a in dom.find_all('a'):
             href = a.get('href')
             if href is None: continue
+
             if self.engine == 'yahoo':
-                if re.match(query_regex['yahoo'], href): urls.append(href)
-            else:
-                query = parse_url(href).query
-                if query is None: continue
-                matched = re.search(query_regex[self.engine], query)
-                if matched is not None:
-                    url = matched.group().split('=')[1]
-                    if self.engine == 'duckduckgo': url = self._decode_url(url)
-                    if not url in urls: urls.append(url)
+                if matched := re.match(not_yahoo, href):
+                    urls.add(href)
+                elif matched := re.match(href_regex[self.engine], href):
+                    url = self._decode_url(matched.group(1))
+                    if re.match(not_yahoo, url):
+                        urls.add(url)
+                urls = self._filter_out_to_share_urls(urls)
+                continue
+
+            query = parse_url(href).query
+            if query is not None:
+                if matched := re.search(href_regex[self.engine], query):
+                    urls.add(self._decode_url(matched.group().split('=')[1]))
         return urls
 
     def _load_page(self, hint):
@@ -110,6 +129,7 @@ class Search:
         if isinstance(response, requests.Response) and response.status_code == requests.codes.ok:
             self.page = response.text
             return True
+
         return False
 
     def _give_hint(self, sense):
@@ -193,29 +213,39 @@ class Search:
         return links
 
     def _save(self, links):
-        file     = self.save_file
-        tmp_file = file + '_tmp'
+        file       = self.save_file
+        tmp_file   = file + '_tmp'
+        links      = list(links)
+        found_file = True
 
-        makedirs(self.save_path)
-        with open(tmp_file, 'w') as tmp_fd, open(file, 'r') as fd:
+        makedirs(self.save_path, exist_ok = True)
+        try:
+            fd = open(file, 'r')
+        except FileNotFoundError:
+            found_file = False
+            tmp_fd     = open(file, 'w')
+        else:
+            tmp_fd = open(tmp_file, 'w')
             while record := fd.readline():
                 query, link, frequency = re.split(',', record)
-                query  = b64decode(query)
-                link   = b64decode(link)
+                query  = b64decode(query.encode()).decode()
+                link   = b64decode(link.encode()).decode()
                 exists = False
                 i      = 0
                 while i < len(links):
                     if link == links[i] and self.query == query:
                         frequency = str(int(frequency) + 1)
-                        tmp_fd.write(str(b64encode(query)) + ',' + str(b64encode(link)) + ',' + frequency)
+                        tmp_fd.write(query + ',' + link + ',' + frequency + "\n")
                         links.pop(i)
                         exists = True
                     i += 1
                 if not exists: tmp_fd.write(record)
+        finally:
             for link in links:
-                tmp_fd.write(str(b64encode(self.query)) + ',' + str(b64encode(link)) + ',1')
-        unlink(file)
-        rename(tmp_file, file)
+                tmp_fd.write(b64encode(self.query.encode()).decode() + ',' + b64encode(link.encode()).decode() + ",1\n")
+        if found_file:
+            unlink(file)
+            rename(tmp_file, file)
 
     def query_saves(self, **kargs):
         query      = kargs.get('query')
@@ -226,8 +256,8 @@ class Search:
         with open(self.save_file, 'r') as fd:
             while record := fd.readline():
                 splited    = re.split(',', record)
-                splited[0] = b64decode(splited[0])
-                splited[1] = b64decode(splited[1])
+                splited[0] = b64decode(splited[0].encode()).decode()
+                splited[1] = b64decode(splited[1].encode()).decode()
                 if query and splited[0] != query: continue
                 if query_like and not re.match(query_like, splited[0]): continue
                 if frequency and frequency != splited[2]: continue
