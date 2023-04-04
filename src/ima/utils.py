@@ -10,15 +10,16 @@ def give_hint(**kargs):
     page         = kargs.get('page')
     submit_value = kargs.get('submit_value')
 
-    if page is None: return
+    if page is None: return None
     dom = BeautifulSoup(page, 'html.parser')
-    if action is not None:
-        index        = 0
+
+    if action:
+        form_count   = 0
         post_data    = {}
         valid_submit = False
 
         for form in dom.find_all('form'):
-            index += 1
+            form_count += 1
             if not re.match(action, form['action']): continue
             post_data['action']  = form['action']
             post_data['payload'] = {}
@@ -31,7 +32,8 @@ def give_hint(**kargs):
                 post_data['payload'][input.get('name')] = input.get('value')
             if valid_submit is True: break
         return post_data
-    elif tag_content is not None:
+
+    if tag_content:
         for a in dom.find_all('a'):
             href = a.get('href')
             if href is None or a.string is None: continue

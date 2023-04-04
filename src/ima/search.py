@@ -12,9 +12,9 @@ from stat         import S_ISREG
 
 class Search:
     search_urls = {
-        'duckduckgo': 'duckduckgo.com/html/?q={0}',
-        'google'    : 'www.google.com/search?q={0}',
-        'yahoo'     : 'search.yahoo.com/search/?p={0}'
+        'duckduckgo': 'https://duckduckgo.com/html/?q={0}',
+        'google'    : 'https://www.google.com/search?q={0}',
+        'yahoo'     : 'https://search.yahoo.com/search/?p={0}'
     }
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1'
@@ -39,7 +39,7 @@ class Search:
         self._set_base_url()
 
         self.page      = ''
-        self.index     = kargs.get('index', 1)
+        self.index     = kargs.get('index', 0)
         self.save      = kargs.get('save', True)
         self.session   = requests.Session()
         self.save_path = kargs.get('save_path', getenv('HOME', curdir))
@@ -61,7 +61,7 @@ class Search:
 
     def set_engine(self, engine):
         Search.check_engine(engine)
-        self.index  = 1
+        self.index  = 0
         self.engine = engine
         self.url    = Search.get_url(self.engine, self.query)
         self._set_base_url()
@@ -81,7 +81,7 @@ class Search:
         dom        = BeautifulSoup(self.page, 'html.parser')
         not_yahoo  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
         href_regex = {
-            'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
+            'google'    : r'imgrefurl=[^&]+|q=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
             'duckduckgo': r'uddg=https?[^&]+',
             'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
         }
@@ -107,7 +107,7 @@ class Search:
             hint['action'] = prepend_base_url(self.base_url, hint['action'])
             response = self.session.post(hint['action'], data = hint['payload'], headers = Search.headers)
         elif isinstance(hint, str):
-            hint = self._prepend_base_url(hint)
+            hint = prepend_base_url(self.base_url, hint)
             response = self.session.get(hint, headers = Search.headers)
 
         if isinstance(response, requests.Response) and response.status_code == requests.codes.ok:
@@ -117,16 +117,17 @@ class Search:
         return False
 
     def _give_hint(self, sense):
+        tag_content = str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant'
         misc = {
             'next': {
-                'google':     { 'tag_content': 'Next' },
+                'google':     { 'tag_content': tag_content },
                 'duckduckgo': { 'submit_value': 'Next', 'action': '/html' },
-                'yahoo':      { 'index': self.index + 1 },
+                'yahoo':      { 'tag_content': tag_content },
             },
             'previous': {
-                'google':     { 'tag_content': 'Previous' },
+                'google':     { 'tag_content': tag_content },
                 'duckduckgo': { 'submit_value': 'Previous', 'action': '/html' },
-                'yahoo':      { 'index': self.index - 1 },
+                'yahoo':      { 'tag_content': tag_content },
             },
         }
         return give_hint(page = self.page, **misc[sense][self.engine])
@@ -139,7 +140,7 @@ class Search:
         save     = kargs.get('save', self.save)
         as_image = kargs.get('as_image', False)
 
-        if self.index == 1:
+        if self.index == 0:
             response = self.session.get(self.url, headers = Search.headers)
             if response.status_code == requests.codes.ok:
                 self.page = response.text
@@ -183,7 +184,7 @@ class Search:
         if start is True: self.index = 1
         while len(links) < count or current_trys < trys:
             new_links = self.next()
-            if is None:
+            if new_links is None:
                 current_trys += 1
                 continue
             links += new_links
@@ -216,7 +217,7 @@ class Search:
                 while i < len(links):
                     if link == links[i] and self.query == query:
                         frequency = str(int(frequency) + 1)
-                        tmp_fd.write(query + ',' + link + ',' + frequency + "\n")
+                        tmp_fd.write(re.match('(.+),', record).group(1) + ',' + frequency + "\n")
                         links.pop(i)
                         exists = True
                     i += 1
