@@ -79,8 +79,8 @@ class Search:
     def _extract_links(self):
         urls       = set()
         dom        = BeautifulSoup(self.page, 'html.parser')
-        not_yahoo  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
-        href_regex = {
+        NOT_YAHOO  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
+        HREF_REGEX = {
             'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
             'duckduckgo': r'uddg=https?[^&]+',
             'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
@@ -91,26 +91,34 @@ class Search:
             if href is None: continue
 
             if self.engine == 'yahoo':
-                if matched := re.match(href_regex[self.engine], href):
+                matched = re.match(HREF_REGEX[self.engine], href):
+                if matched:
                     url = self._decode_url(matched.group(1))
-                    if re.match(not_yahoo, url):
+                    if re.match(NOT_YAHOO, url):
                         urls.add(url)
                 continue
 
-            if query := parse_url(href).query:
-                if matched := re.search(href_regex[self.engine], query):
+            query = parse_url(href).query
+            if query:
+                matched = re.search(HREF_REGEX[self.engine], query):
+                if matched:
                     urls.add(self._decode_url(matched.group().split('=')[1]))
         return urls
 
     def _load_page(self, hint):
-        if isinstance(hint, dict):
-            hint['action'] = prepend_base_url(self.base_url, hint['action'])
-            response = self.session.post(hint['action'], data = hint['payload'], headers = Search.headers)
-        elif isinstance(hint, str):
+        response = None
+
+        # Simple link to follow
+        if isinstance(hint, str):
             hint = prepend_base_url(self.base_url, hint)
             response = self.session.get(hint, headers = Search.headers)
 
-        if isinstance(response, requests.Response) and response.status_code == requests.codes.ok:
+        # HTTP POST
+        elif isinstance(hint, dict):
+            hint['action'] = prepend_base_url(self.base_url, hint['action'])
+            response = self.session.post(hint['action'], data = hint['payload'], headers = Search.headers)
+
+        if response is not None and response.status_code == requests.codes.ok:
             self.page = response.text
             return True
 
@@ -118,17 +126,16 @@ class Search:
 
     def _give_hint(self, sense):
         tag_content = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
-        page_number = '\s*' + ' Page ' + str(self.index + 1) + '\s*'
         misc = {
             'next': {
-                'google':     { 'tag_content': tag_content, 'href_next': page_number },
+                'yahoo'     : { 'tag_content': tag_content },
+                'google'    : { 'tag_content': tag_content, 'href_like': '' },
                 'duckduckgo': { 'submit_value': 'Next', 'action': '/html' },
-                'yahoo':      { 'tag_content': tag_content },
             },
             'previous': {
-                'google':     { 'tag_content': tag_content, 'href_next': page_number },
+                'yahoo'     : { 'tag_content': tag_content },
+                'google'    : { 'tag_content': tag_content, 'href_next': '' },
                 'duckduckgo': { 'submit_value': 'Previous', 'action': '/html' },
-                'yahoo':      { 'tag_content': tag_content },
             },
         }
         return give_hint(page = self.page, **misc[sense][self.engine])

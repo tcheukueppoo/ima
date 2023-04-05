@@ -4,54 +4,66 @@ import re, requests
 from bs4 import BeautifulSoup
 from requests.models import RequestEncodingMixin
 
+def _href_next_to_tag(dom, next_to):
+    pass
+
 def give_hint(**kargs):
     page = kargs.get('page')
-    if page is None: return None
-
+    if page is None: return
     dom = BeautifulSoup(page, 'html.parser')
+
+    # Some sites(e.g Duckduckgo) requires HTTP POST to get the next/previous page
     if action := kargs.get('action'):
         valid_submit = False
         submit_value = kargs.get('submit_value')
-        form_count   = 0
         post_data    = {}
+
         for form in dom.find_all('form'):
-            form_count += 1
-            if not re.match(action, form['action']):
-                continue
-            post_data['action']  = form['action']
+            if not re.match(action, form['action']): continue
+
             post_data['payload'] = {}
-            if submit_value is None: valid_submit = True
-            for input in form.contents:
-                if input.name != 'input' or input.get('name') is None: continue
-                if submit_value is not None and input.get('type') == 'submit' and re.match(submit_value, input.get('name')):
+            for t in form.contents:
+                if t.name != 'input' or t.get('name') is None: continue
+                if submit_value and (
+                    t.get('type') == 'submit' and re.match(submit_value, t.get('name'))
+                ):
                     valid_submit = True
                     continue
-                post_data['payload'][input.get('name')] = input.get('value')
-            if valid_submit is True: break
-        return post_data
+                post_data['payload'][t.get('name')] = t.get('value')
 
-    if next_to := kargs.get('next_to'):
-        pass
+            if len( post_data['payload'].keys() ) > 0 and (
+                submit_value is None or (
+                    submit_value and valid_submit is True
+                )
+            ):
+                post_data['action'] = form['action']
+                break
+
+        if len( post_data.keys() ) > 1:
+            return post_data
 
     href_like   = kargs.get('href_like')
     tag_content = kargs.get('tag_content')
-    if href_like is None and tag_content is None:
-        return None
+
+    if href_like is None and tag_content is None: return None
     for a in dom.find_all('a'):
         href = a.get('href')
+
+        if href is None: return
         if href_like and re.match(href_like, href):
             return href
-        if tag_content and re.match(tag_content, a.string):
+        a_content = a.string
+        if a_content and tag_content and re.match(tag_content, a_content.encode().decode()):
             return href
-
 
 def prepend_base_url(base_url, href):
     if re.match('https?', href):
         return href
-    elif re.match('//', href):
-        return re.sub('//', '', href)
+    elif href.startswith('//'):
+        return 'http:' + href
     elif re.match('/[^/]|#|\?', href):
         return base_url + '/' + re.match('/?(.+)', href).group(1)
+    return href
 
 def get_base_url(link):
     return re.match(r'(.+?)(?<!/)/(?!/)', link).group(1)
@@ -67,10 +79,10 @@ def download_file(link, **kargs):
         return False
 
     if filename is None:
-        if matched := re.match('attachment; filename="(.+)"', response.headers.get('content-disposition', '')):
-            filename = matched.group(1)
-        else:
-            filename = re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
+        cd       = response.headers.get('content-disposition', '')
+        matched  = re.search('attachment; filename="(.+)"', cd))
+        filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
+
     with open(re.match('(.+[^/])/*$').group(1) + '/' + filename, 'wb') as fd:
         for chunk in response.iter_content(chunk_size = 128):
             fd.write(chunk)
