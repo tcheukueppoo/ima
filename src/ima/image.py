@@ -55,7 +55,7 @@ class Image:
 
     def get_links(self, **kargs):
         if self.page is None:
-            raise Exception('PageIsNone: cannot fetch image links, page is None')
+            return None
         links       = []
         score_links = kargs.get('score_with', self._builtin_score)
         count       = kargs.get('count', inf)

@@ -5,22 +5,19 @@ from bs4 import BeautifulSoup
 from requests.models import RequestEncodingMixin
 
 def give_hint(**kargs):
-    action       = kargs.get('action')
-    tag_content  = kargs.get('tag_content')
-    page         = kargs.get('page')
-    submit_value = kargs.get('submit_value')
-
+    page = kargs.get('page')
     if page is None: return None
-    dom = BeautifulSoup(page, 'html.parser')
 
-    if action:
+    dom = BeautifulSoup(page, 'html.parser')
+    if action := kargs.get('action'):
+        valid_submit = False
+        submit_value = kargs.get('submit_value')
         form_count   = 0
         post_data    = {}
-        valid_submit = False
-
         for form in dom.find_all('form'):
             form_count += 1
-            if not re.match(action, form['action']): continue
+            if not re.match(action, form['action']):
+                continue
             post_data['action']  = form['action']
             post_data['payload'] = {}
             if submit_value is None: valid_submit = True
@@ -33,12 +30,20 @@ def give_hint(**kargs):
             if valid_submit is True: break
         return post_data
 
-    if tag_content:
-        for a in dom.find_all('a'):
-            href = a.get('href')
-            if href is None or a.string is None: continue
-            if re.match(tag_content, a.string):  return href
-    return None
+    if next_to := kargs.get('next_to'):
+        pass
+
+    href_like   = kargs.get('href_like')
+    tag_content = kargs.get('tag_content')
+    if href_like is None and tag_content is None:
+        return None
+    for a in dom.find_all('a'):
+        href = a.get('href')
+        if href_like and re.match(href_like, href):
+            return href
+        if tag_content and re.match(tag_content, a.string):
+            return href
+
 
 def prepend_base_url(base_url, href):
     if re.match('https?', href):
@@ -59,7 +64,7 @@ def download_file(link, **kargs):
 
     response = client.get(link, stream = True)
     if response.status_code != client.codes.ok:
-        raise Exception('HTTPResponseError: status code:', response.status_code)
+        return False
 
     if filename is None:
         if matched := re.match('attachment; filename="(.+)"', response.headers.get('content-disposition', '')):

@@ -27,7 +27,7 @@ class Search:
 
     @staticmethod
     def get_url(engine, query):
-        return 'https://' + Search.search_urls[engine].format(query.replace(' ', '+'))
+        return Search.search_urls[engine].format(query.replace(' ', '+'))
 
 
     def __init__(self, **kargs):
@@ -81,7 +81,7 @@ class Search:
         dom        = BeautifulSoup(self.page, 'html.parser')
         not_yahoo  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
         href_regex = {
-            'google'    : r'imgrefurl=[^&]+|q=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
+            'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
             'duckduckgo': r'uddg=https?[^&]+',
             'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
         }
@@ -117,15 +117,16 @@ class Search:
         return False
 
     def _give_hint(self, sense):
-        tag_content = str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant'
+        tag_content = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
+        page_number = '\s*' + ' Page ' + str(self.index + 1) + '\s*'
         misc = {
             'next': {
-                'google':     { 'tag_content': tag_content },
+                'google':     { 'tag_content': tag_content, 'href_next': page_number },
                 'duckduckgo': { 'submit_value': 'Next', 'action': '/html' },
                 'yahoo':      { 'tag_content': tag_content },
             },
             'previous': {
-                'google':     { 'tag_content': tag_content },
+                'google':     { 'tag_content': tag_content, 'href_next': page_number },
                 'duckduckgo': { 'submit_value': 'Previous', 'action': '/html' },
                 'yahoo':      { 'tag_content': tag_content },
             },
