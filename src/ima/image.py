@@ -15,8 +15,9 @@ class Image:
         uniq_links = []
 
         while True:
-            i         = 1
             uniq_link = links.pop(0)
+
+            i = 1
             while i < len(links):
                 if links[i]['url'] == uniq_link['url']:
                     candidate = links.pop(i)
@@ -57,15 +58,14 @@ class Image:
         }
 
     def get_links(self, **kargs):
-        if self.page is None:
-            return None
+        if self.page is None: return None
 
         links       = []
         score_links = kargs.get('score_with', self._builtin_score)
         count       = kargs.get('count', inf)
         dom         = BeautifulSoup(self.page, 'html.parser')
 
-        for tag_attribute in [['img', 'src'], ['a', 'href']]:
+        for tag_attribute in [ ['img', 'src'], ['a', 'href'] ]:
             for tag_object in dom.find_all(tag_attribute[0]):
                 if link := self._get_link(tag_object, *tag_attribute):
                     links.append(link)
@@ -78,9 +78,7 @@ class Image:
 
         return links[0:count]
 
-    def download_from(self, link, **kargs):
-        download_file(link, **kargs)
+    def download_from(self, link, **kargs): download_file(link, **kargs)
 
     def download(self, **kargs):
-        for link in self.get_links(**kargs):
-            self.download_from(link['url'])
+        for link in self.get_links(**kargs): self.download_from(link['url'])

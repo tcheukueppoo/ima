@@ -5,7 +5,7 @@ import re, requests
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from .image       import Image
-from .utils       import give_hint, get_base_url, prepend_base_url, strip_base_url, is_image, http_x
+from .utils       import give_hint, get_base_url, prepend_base_url, strip_base_url, is_image, http_x, random_user_agent
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
@@ -20,7 +20,11 @@ class Search:
     }
 
     headers = {
-        'User-Agent': 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1'
+        'User-Agent'     : random_user_agent(),
+        'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+        'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'en-us,en;q=0.5',
     }
 
     @staticmethod
@@ -290,7 +294,7 @@ class Search:
         links = links[0:count]
         if save and len(links) > 0: self._save(links)
 
-        if as_image:
+        if as_image is not None:
             return self.convert_links_to_image_objects(links)
         return links
 
