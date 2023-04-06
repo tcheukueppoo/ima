@@ -25,26 +25,20 @@ def give_hint(**kargs):
         post_data    = {}
 
         for form in dom.find_all('form'):
-
             if not re.match(action, form['action']):
                 continue
             post_data['payload'] = {}
 
             for tag in form.contents:
-
                 if isinstance(tag, NavigableString):
                     continue
-
-                if submit_value and (
-                        tag.get('type') == 'submit' 
-                    and re.match(submit_value, tag.get('value'))
-                ):
+                if submit_value and tag.get('type') == 'submit' and re.match(submit_value, tag.get('value')):
                     valid_submit = True
                     continue
+                if tag.name != 'input' or tag.get('name') is None:
+                    continue
 
-                if tag.name == 'input' and tag.get('name'):
-                    post_data['payload'][tag.get('name')] = tag.get('value')
-
+                post_data['payload'][tag.get('name')] = tag.get('value')
             if len( post_data['payload'].keys() ) > 0 and (
                 submit_value is None or (
                     submit_value and valid_submit is True
@@ -126,3 +120,10 @@ def download_file(link, **kargs):
     with open(re.match('(.+[^/])/*$').group(1) + '/' + filename, 'wb') as fd:
         for chunk in response.iter_content(chunk_size = 128):
             fd.write(chunk)
+
+def http_x(method, session, link, **kargs):
+    response = session.get(link, **kargs) if method == 'GET' else session.post(link, **kargs)
+
+    if response.status_code == requests.codes.ok:
+        return response.text
+    raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)

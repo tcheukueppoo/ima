@@ -1,6 +1,6 @@
 from bs4    import BeautifulSoup
 from math   import inf
-from .utils import download_file, prepend_base_url, is_image
+from .utils import download_file, prepend_base_url, is_image, http_x
 
 import re, requests
 
@@ -13,6 +13,7 @@ class Image:
     @staticmethod
     def _uniquefy_links(links):
         uniq_links = []
+
         while True:
             i         = 1
             uniq_link = links.pop(0)
@@ -23,27 +24,32 @@ class Image:
                         uniq_link = candidate
                 i += 1
             uniq_links.append(uniq_link)
-            if len(links) == 0: break
-        return uniq_links
 
-    def is_image(self, link, **kargs):
-        return is_image(link, **kargs)
+            if len(links) == 0:
+                break
+
+        return uniq_links
 
     def _builtin_score(self, links):
         if self.subject is None: return links
+
         for token in re.split('\s+', self.subject):
             for link in links:
                 if link['content'].find(token) != -1: link['score'] += 1
+
         return links
 
     def _get_link(self, tag_object, tag, attribute):
-        get_content = { 'a': tag_object.string, 'img': tag_object.get('alt') }
+        get_content = { 'a': tag_object.string.encode().decode(), 'img': tag_object.get('alt') }
         content     = get_content[tag]
         url         = tag_object.get(attribute)
 
-        if content is None or len(content) == 0 or url is None or re.match('#', url): return None
+        if content is None or len(content) == 0 or url is None or re.match('#', url):
+            return None
+
         url = prepend_base_url(self.base_url, url)
-        if self.is_image(url) is False: return None
+        if is_image(url) is False: return None
+
         return {
             'content': content,
             'url'    : url,
@@ -53,6 +59,7 @@ class Image:
     def get_links(self, **kargs):
         if self.page is None:
             return None
+
         links       = []
         score_links = kargs.get('score_with', self._builtin_score)
         count       = kargs.get('count', inf)
@@ -60,15 +67,16 @@ class Image:
 
         for tag_attribute in [['img', 'src'], ['a', 'href']]:
             for tag_object in dom.find_all(tag_attribute[0]):
-                if (link := self._get_link(tag_object, *tag_attribute)) is not None:
+                if link := self._get_link(tag_object, *tag_attribute):
                     links.append(link)
 
         # NOTE: Get unique links *after* scoring!
         links = Image._uniquefy_links(score_links(links))
         
         def sort_key(l): return l['score']
-        uniq_links.sort(key = sort_key, reverse = True)
-        return uniq_links if len(uniq_links) <= count else uniq_links[0:count]
+        links.sort(key = sort_key, reverse = True)
+
+        return links[0:count]
 
     def download_from(self, link, **kargs):
         download_file(link, **kargs)
