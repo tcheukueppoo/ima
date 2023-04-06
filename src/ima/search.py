@@ -144,7 +144,7 @@ class Search:
                                      .replace(')', '\)') + '&ei=[^&]+&start=\d+&sa=N'
 
         TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
-        TAG_CONTENT_BACK = '\s*' + str(self.index + 1) + '|' + 'Previous' + '|' + 'Précédent' + '\s*' # add more ....
+        TAG_CONTENT_BACK = '\s*' + str(self.index - 1) + '|' + 'Prev(?:ious)?' + '|' + 'Précédent' + '\s*' # add more ....
 
         MISC = {
             'NEXT': {
@@ -177,8 +177,9 @@ class Search:
             },
         }
 
-        hint = give_hint(page = self.page, **MISC[sense][self.engine])
+        hint = give_hint(page = self.page, base_url = self.base_url, **MISC[sense][self.engine])
         if hint is None:
+            print("IS NONE")
             exit(1)
         print("Fucking hint", hint)
         return hint

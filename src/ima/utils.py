@@ -49,8 +49,13 @@ def give_hint(**kargs):
 
     href_like   = kargs.get('href_like')
     tag_content = kargs.get('tag_content')
+    base_url    = kargs.get('base_url')
 
     if href_like is None and tag_content is None: return None
+
+    def is_of_this_domain(href):
+        if re.match(r'/(?!/)', href) or href.startswith(base_url): return True
+        return False
 
     #if href_like: print("=======>", href_like['re'])
     hrefs_like = []
@@ -63,14 +68,19 @@ def give_hint(**kargs):
             hrefs_like.append(href)
 
         content = a.string
-        if content and tag_content and re.match(tag_content, content.encode().decode()):
+        if tag_content and (
+                content
+            and re.match(tag_content, content.encode().decode())
+            and is_of_this_domain(href)
+        ):
             print("first: " + href)
             return href
 
     if href_like and len(hrefs_like) > 0:
         #print("second: ", hrefs_like)
         try:
-            return hrefs_like[href_like['index']]
+            href = hrefs_like[href_like['index']]
+            return href if is_of_this_domain(href) else None
         except:
             return None
 
