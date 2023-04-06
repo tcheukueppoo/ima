@@ -12,7 +12,7 @@ from stat         import S_ISREG
 
 class Search:
     search_urls = {
-        'duckduckgo': 'https://duckduckgo.com/html/?q={0}',
+        'duckduckgo': 'https://html.duckduckgo.com/html/?q={0}',
         'google'    : 'https://www.google.com/search?q={0}',
         'yahoo'     : 'https://search.yahoo.com/search/?p={0}'
     }
@@ -97,14 +97,19 @@ class Search:
                         urls.add(url)
                 continue
 
+            added = False # Some Duckduckgo results are more than CLEAN, SANE!
             query = parse_url(href).query
-            if query:
+            if query is not None:
                 if matched := re.search(HREF_REGEX[self.engine], query):
-                    url = matched.group().split('=')[1]
+                    url = self._decode_url(matched.group().split('=')[1])
 
                     # Google: some urls given via url= parameter are images, strip them off
                     if self.engine != 'google' or not is_image(url, client = self.session):
-                        urls.add(self._decode_url(matched.group().split('=')[1]))
+                        added = True
+                        urls.add(url)
+
+            if not added and self.engine == 'duckduckgo' and not href.startswith('/'):
+                urls.add(href)
         return urls
 
     def _load_page(self, hint):
@@ -115,7 +120,7 @@ class Search:
             hint = prepend_base_url(self.base_url, hint)
             response = self.session.get(hint, headers = Search.headers)
 
-        # HTTP POST
+        # HTTP POST, DuckDuckGO
         elif isinstance(hint, dict):
             hint['action'] = prepend_base_url(self.base_url, hint['action'])
             response = self.session.post(hint['action'], data = hint['payload'], headers = Search.headers)
@@ -123,6 +128,8 @@ class Search:
         if response is not None and response.status_code == requests.codes.ok:
             self.page = response.text
             return True
+        else:
+            raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
 
         return False
 
@@ -143,8 +150,8 @@ class Search:
                                      .replace('(', '\(') \
                                      .replace(')', '\)') + '&ei=[^&]+&start=\d+&sa=N'
 
-        TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
-        TAG_CONTENT_BACK = '\s*' + str(self.index - 1) + '|' + 'Prev(?:ious)?' + '|' + 'Précédent' + '\s*' # add more ....
+        TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*'            # need to add more ...
+        TAG_CONTENT_BACK = '\s*' + str(self.index - 1) + '|' + 'Prev(?:ious)?' + '|' + 'Précédent' + '\s*' # same here ...
 
         MISC = {
             'NEXT': {
@@ -158,7 +165,7 @@ class Search:
                 },
                 'duckduckgo': {
                     'submit_value': 'Next',
-                    'action'      : '/html',
+                    'action'      : '/html/',
                 },
             },
             'BACK': {
@@ -172,15 +179,12 @@ class Search:
                 },
                 'duckduckgo': {
                     'submit_value': 'Previous',
-                    'action'      : '/html',
+                    'action'      : '/html/',
                 },
             },
         }
 
         hint = give_hint(page = self.page, base_url = self.base_url, **MISC[sense][self.engine])
-        if hint is None:
-            print("IS NONE")
-            exit(1)
         print("Fucking hint", hint)
         return hint
 
@@ -197,7 +201,7 @@ class Search:
             if response.status_code == requests.codes.ok:
                 self.page = response.text
             else:
-                raise Exception("HttpResponseError: Possibly a Server error")
+                raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
         else:
             hint = self._give_hint('NEXT')
             if hint is None or self._load_page(hint) is False: return None
@@ -297,4 +301,3 @@ class Search:
                 if frequency and frequency != splited[2]: continue
                 matched += splited[1]
         return matched
-

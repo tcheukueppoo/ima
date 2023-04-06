@@ -3,6 +3,7 @@
 import re, requests
 
 from bs4 import BeautifulSoup
+from bs4 import NavigableString
 
 BASE_URL = r'^(.+?)(?<!/)/(?!/)'
 
@@ -24,17 +25,25 @@ def give_hint(**kargs):
         post_data    = {}
 
         for form in dom.find_all('form'):
-            if not re.match(action, form['action']): continue
 
+            if not re.match(action, form['action']):
+                continue
             post_data['payload'] = {}
-            for t in form.contents:
-                if t.name != 'input' or t.get('name') is None: continue
+
+            for tag in form.contents:
+
+                if isinstance(tag, NavigableString):
+                    continue
+
                 if submit_value and (
-                    t.get('type') == 'submit' and re.match(submit_value, t.get('name'))
+                        tag.get('type') == 'submit' 
+                    and re.match(submit_value, tag.get('value'))
                 ):
                     valid_submit = True
                     continue
-                post_data['payload'][t.get('name')] = t.get('value')
+
+                if tag.name == 'input' and tag.get('name'):
+                    post_data['payload'][tag.get('name')] = tag.get('value')
 
             if len( post_data['payload'].keys() ) > 0 and (
                 submit_value is None or (
@@ -73,13 +82,11 @@ def give_hint(**kargs):
             and re.match(tag_content, content.encode().decode())
             and is_of_this_domain(href)
         ):
-            print("first: " + href)
             return href
 
     if href_like and len(hrefs_like) > 0:
-        #print("second: ", hrefs_like)
         try:
-            href = hrefs_like[href_like['index']]
+            href = hrefs_like[ href_like['index'] if href_like['index'] else 0 ]
             return href if is_of_this_domain(href) else None
         except:
             return None
