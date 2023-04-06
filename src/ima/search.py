@@ -5,7 +5,7 @@ import re, requests
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from .image       import Image
-from .utils       import give_hint, get_base_url, prepend_base_url
+from .utils       import give_hint, get_base_url, prepend_base_url, strip_base_url, is_image
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
@@ -28,7 +28,6 @@ class Search:
     @staticmethod
     def get_url(engine, query):
         return Search.search_urls[engine].format(query.replace(' ', '+'))
-
 
     def __init__(self, **kargs):
         self.engine = kargs.get('engine', 'google')
@@ -77,8 +76,6 @@ class Search:
         return re.sub(r'%([a-fA-F0-9]{2})', replace, url)
 
     def _extract_links(self):
-        urls       = set()
-        dom        = BeautifulSoup(self.page, 'html.parser')
         NOT_YAHOO  = r'(https?://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com)).+)$'
         HREF_REGEX = {
             'google'    : r'imgrefurl=[^&]+|(?:q|url)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
@@ -86,12 +83,14 @@ class Search:
             'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
         }
 
+        urls = set()
+        dom  = BeautifulSoup(self.page, 'html.parser')
         for a in dom.find_all('a'):
             href = a.get('href')
             if href is None: continue
 
             if self.engine == 'yahoo':
-                matched = re.match(HREF_REGEX[self.engine], href):
+                matched = re.match(HREF_REGEX[self.engine], href)
                 if matched:
                     url = self._decode_url(matched.group(1))
                     if re.match(NOT_YAHOO, url):
@@ -100,9 +99,12 @@ class Search:
 
             query = parse_url(href).query
             if query:
-                matched = re.search(HREF_REGEX[self.engine], query):
-                if matched:
-                    urls.add(self._decode_url(matched.group().split('=')[1]))
+                if matched := re.search(HREF_REGEX[self.engine], query):
+                    url = matched.group().split('=')[1]
+
+                    # Google: some urls given via url= parameter are images, strip them off
+                    if self.engine != 'google' or not is_image(url, client = self.session):
+                        urls.add(self._decode_url(matched.group().split('=')[1]))
         return urls
 
     def _load_page(self, hint):
@@ -125,20 +127,61 @@ class Search:
         return False
 
     def _give_hint(self, sense):
-        tag_content = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
-        misc = {
-            'next': {
-                'yahoo'     : { 'tag_content': tag_content },
-                'google'    : { 'tag_content': tag_content, 'href_like': '' },
-                'duckduckgo': { 'submit_value': 'Next', 'action': '/html' },
+        HREF_LIKE = strip_base_url(self.url) \
+                                     .replace('\\', '\\\\') \
+                                     .replace('.', '\.') \
+                                     .replace('^', '\^') \
+                                     .replace('$', '\$') \
+                                     .replace('?', '\?') \
+                                     .replace('*', '\*') \
+                                     .replace('+', '\+') \
+                                     .replace('{', '\{') \
+                                     .replace('}', '\}') \
+                                     .replace('[', '\[') \
+                                     .replace(']', '\]') \
+                                     .replace('|', '\|') \
+                                     .replace('(', '\(') \
+                                     .replace(')', '\)') + '&ei=[^&]+&start=\d+&sa=N'
+
+        TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*' # add more ....
+        TAG_CONTENT_BACK = '\s*' + str(self.index + 1) + '|' + 'Previous' + '|' + 'Précédent' + '\s*' # add more ....
+
+        MISC = {
+            'NEXT': {
+                'yahoo' : { 'tag_content': TAG_CONTENT_NEXT },
+                'google': { 
+                    'tag_content': TAG_CONTENT_NEXT,
+                    'href_like'  : {
+                        'index': -1,
+                        're'   : HREF_LIKE,
+                    }
+                },
+                'duckduckgo': {
+                    'submit_value': 'Next',
+                    'action'      : '/html',
+                },
             },
-            'previous': {
-                'yahoo'     : { 'tag_content': tag_content },
-                'google'    : { 'tag_content': tag_content, 'href_next': '' },
-                'duckduckgo': { 'submit_value': 'Previous', 'action': '/html' },
+            'BACK': {
+                'yahoo' : { 'tag_content': TAG_CONTENT_BACK },
+                'google': {
+                    'tag_content': TAG_CONTENT_BACK,
+                    'href_like'  : {
+                        'index': -2,
+                        're'   : HREF_LIKE,
+                    }
+                },
+                'duckduckgo': {
+                    'submit_value': 'Previous',
+                    'action'      : '/html',
+                },
             },
         }
-        return give_hint(page = self.page, **misc[sense][self.engine])
+
+        hint = give_hint(page = self.page, **MISC[sense][self.engine])
+        if hint is None:
+            exit(1)
+        print("Fucking hint", hint)
+        return hint
 
     def convert_links_to_image_objects(self, links):
         for link in links:
@@ -153,9 +196,9 @@ class Search:
             if response.status_code == requests.codes.ok:
                 self.page = response.text
             else:
-                raise Exception("HTTPResponseError: couldn't fetch the first page")
+                raise Exception("HttpResponseError: Possibly a Server error")
         else:
-            hint = self._give_hint('next')
+            hint = self._give_hint('NEXT')
             if hint is None or self._load_page(hint) is False: return None
 
         self.index += 1
@@ -165,12 +208,12 @@ class Search:
 
         return links
 
-    def previous(self, **kargs):
+    def back(self, **kargs):
         save     = kargs.get('save', self.save)
         as_image = kargs.get('as_image', False)
 
         if self.index == 1: return None
-        self._load_page(self._give_hint('previous'))
+        self._load_page(self._give_hint('BACK'))
         self.index -= 1
         links = self._extract_links()
         if save: self._save(links)

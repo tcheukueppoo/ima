@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 
 import re, requests
-from bs4 import BeautifulSoup
-from requests.models import RequestEncodingMixin
 
-def _href_next_to_tag(dom, next_to):
-    pass
+from bs4 import BeautifulSoup
+
+BASE_URL = r'^(.+?)(?<!/)/(?!/)'
+
+def is_image(link, **kargs):
+    session  = kargs.get('session', requests.session())
+    response = session.head(link)
+    if re.match('image/', response.headers.get('content-type', '')): return True
+    return False
 
 def give_hint(**kargs):
     page = kargs.get('page')
@@ -46,15 +51,28 @@ def give_hint(**kargs):
     tag_content = kargs.get('tag_content')
 
     if href_like is None and tag_content is None: return None
+
+    #if href_like: print("=======>", href_like['re'])
+    hrefs_like = []
     for a in dom.find_all('a'):
         href = a.get('href')
 
         if href is None: return
-        if href_like and re.match(href_like, href):
+        #if re.match('.*?Images\+of\+fullmetal\+alchemist', href): print("see real href: ", href)
+        if href_like and re.match(href_like['re'], href):
+            hrefs_like.append(href)
+
+        content = a.string
+        if content and tag_content and re.match(tag_content, content.encode().decode()):
+            print("first: " + href)
             return href
-        a_content = a.string
-        if a_content and tag_content and re.match(tag_content, a_content.encode().decode()):
-            return href
+
+    if href_like and len(hrefs_like) > 0:
+        #print("second: ", hrefs_like)
+        try:
+            return hrefs_like[href_like['index']]
+        except:
+            return None
 
 def prepend_base_url(base_url, href):
     if re.match('https?', href):
@@ -65,8 +83,13 @@ def prepend_base_url(base_url, href):
         return base_url + '/' + re.match('/?(.+)', href).group(1)
     return href
 
+def strip_base_url(url):
+    if re.match('https?://', url):
+        return '/' + re.sub(BASE_URL, '', url)
+    return url
+
 def get_base_url(link):
-    return re.match(r'(.+?)(?<!/)/(?!/)', link).group(1)
+    return re.match(BASE_URL, link).group(1)
 
 def download_file(link, **kargs):
     headers  = kargs.get('header')
@@ -80,7 +103,7 @@ def download_file(link, **kargs):
 
     if filename is None:
         cd       = response.headers.get('content-disposition', '')
-        matched  = re.search('attachment; filename="(.+)"', cd))
+        matched  = re.search('attachment; filename="(.+)"', cd)
         filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
 
     with open(re.match('(.+[^/])/*$').group(1) + '/' + filename, 'wb') as fd:

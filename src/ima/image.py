@@ -1,6 +1,6 @@
 from bs4    import BeautifulSoup
 from math   import inf
-from .utils import download_file, prepend_base_url
+from .utils import download_file, prepend_base_url, is_image
 
 import re, requests
 
@@ -27,10 +27,7 @@ class Image:
         return uniq_links
 
     def is_image(self, link, **kargs):
-        session  = kargs.get('session', requests.session())
-        response = session.head(link)
-        if re.match('image/', response.headers.get('content-type', '')): return True
-        return False
+        return is_image(link, **kargs)
 
     def _builtin_score(self, links):
         if self.subject is None: return links
