@@ -3,12 +3,28 @@
 import re
 import random
 import requests
+import locale
+import itertools
 
+from os  import sep makedirs
 from bs4 import BeautifulSoup
 from bs4 import NavigableString
 
+BASE_URL     = r'^(.+?)(?<!/)/(?!/)'
+#HTTP_URL     = r'https?://(?:\w+)(?:\.\w+)?(?::[1-9]\d+)?(?:/[^/]/?)(?P)\?(?<>[^/&=:])=(?P)'
+ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
+                        itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
+                                        'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y')))
+def preferred_encoding():
+    try:
+        pref = locale.getpreferredencoding()
+        'TEST'.encode(pref)
+    except Exception:
+        pref = 'UTF-8'
+    return pref
+
 def random_user_agent():
-    _USER_AGENT_TPL = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
+    _USER_AGENT_TPL  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
     _CHROME_VERSIONS = (
         '74.0.3729.129',
         '76.0.3780.3',
@@ -1589,12 +1605,19 @@ def random_user_agent():
     )
     return _USER_AGENT_TPL % random.choice(_CHROME_VERSIONS)
 
-BASE_URL = r'^(.+?)(?<!/)/(?!/)'
+def generate_headers():
+    return {
+        'User-Agent'     : random_user_agent(),
+        'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+        'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'en-us,en;q=0.5',
+    }
 
-def is_image(link, **kargs):
-    session  = kargs.get('session', requests.session())
+def is_image(link, session):
     response = session.head(link)
-    if re.match('image/', response.headers.get('content-type', '')): return True
+    if re.match('image/', response.headers.get('content-type', '')):
+        return True
     return False
 
 def give_hint(**kargs):
@@ -1619,10 +1642,10 @@ def give_hint(**kargs):
                 if submit_value and tag.get('type') == 'submit' and re.match(submit_value, tag.get('value')):
                     valid_submit = True
                     continue
-                if tag.name != 'input' or tag.get('name') is None:
+                if tag.get('name') is None or not tag.name == 'input':
                     continue
-
                 post_data['payload'][tag.get('name')] = tag.get('value')
+
             if len( post_data['payload'].keys() ) > 0 and (
                 submit_value is None or (
                     submit_value and valid_submit is True
@@ -1644,20 +1667,19 @@ def give_hint(**kargs):
         if re.match(r'/(?!/)', href) or href.startswith(base_url): return True
         return False
 
-    #if href_like: print("=======>", href_like['re'])
     hrefs_like = []
     for a in dom.find_all('a'):
         href = a.get('href')
 
         if href is None: return
-        #if re.match('.*?Images\+of\+fullmetal\+alchemist', href): print("see real href: ", href)
         if href_like and re.match(href_like['re'], href):
             hrefs_like.append(href)
 
         content = a.string
+        encoding = preferred_encoding()
         if tag_content and (
                 content
-            and re.match(tag_content, content.encode().decode())
+            and re.match(tag_content, content.encode(encoding).decode(encoding))
             and is_of_this_domain(href)
         ):
             return href
@@ -1674,8 +1696,8 @@ def prepend_base_url(base_url, href):
         return href
     elif href.startswith('//'):
         return 'http:' + href
-    elif re.match('/[^/]|#|\?', href):
-        return base_url + '/' + re.match('/?(.+)', href).group(1)
+    elif re.match(r'/[^/]|#|\?', href):
+        return base_url + '/' + re.match(r'/?(.+)', href).group(1)
     return href
 
 def strip_base_url(url):
@@ -1684,26 +1706,9 @@ def strip_base_url(url):
     return url
 
 def get_base_url(link):
-    return re.match(BASE_URL, link).group(1)
-
-def download_file(link, **kargs):
-    headers  = kargs.get('header')
-    path     = kargs.get('path', '.')
-    filename = kargs.get('filename')
-    client   = kargs.get('client', requests)
-
-    response = client.get(link, stream = True)
-    if response.status_code != client.codes.ok:
-        return False
-
-    if filename is None:
-        cd       = response.headers.get('content-disposition', '')
-        matched  = re.search('attachment; filename="(.+)"', cd)
-        filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
-
-    with open(re.match('(.+[^/])/*$').group(1) + '/' + filename, 'wb') as fd:
-        for chunk in response.iter_content(chunk_size = 128):
-            fd.write(chunk)
+    matched = re.match(BASE_URL, link)
+    if matched: return matched.group(1)
+    return None
 
 def http_x(method, session, link, **kargs):
     response = session.get(link, **kargs) if method == 'GET' else session.post(link, **kargs)
@@ -1711,3 +1716,43 @@ def http_x(method, session, link, **kargs):
     if response.status_code == requests.codes.ok:
         return response.text
     raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
+
+def sanitize_filename(string, restricted=False):
+    def replace_insane(char):
+        if restricted and char in ACCENT_CHARS:
+            return ACCENT_CHARS[char]
+        if char == '?' or ord(char) < 32 or ord(char) == 127:
+            return ''
+        elif char == '"':
+            return '' if restricted else '\''
+        elif char == ':':
+            return '_-' if restricted else ' -'
+        elif char in '\\/|*<>':
+            return '_'
+        if restricted and (char in '!&\'()[]{}$;`^,#' or char.isspace()):
+            return '_'
+        if restricted and ord(char) > 127:
+            return '_'
+        return char
+
+    string = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), string)
+    return ''.join(map(replace_insane, string))
+
+def download_file(link, session, **kargs):
+    path     = kargs.get('path', '.')
+    filename = kargs.get('filename')
+    response = session.get(link, stream = True)
+
+    if not response.status_code == requests.codes.ok:
+        raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
+
+    if filename is None:
+        cd       = response.headers.get('content-disposition', '')
+        matched  = re.search('attachment; filename="(.+)"', cd)
+        filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
+
+    filename = sanitize_filename(filename)
+    makedirs(path, is_ok = True)
+    fd = open(re.match('(.+[^/])/*$', path).group(1) + sep + filename, 'wb')
+    for chunk in response.iter_content(chunk_size = 128):
+        fd.write(chunk)
