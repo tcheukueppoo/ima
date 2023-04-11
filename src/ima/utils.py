@@ -6,11 +6,11 @@ import requests
 import locale
 import itertools
 
-from os  import sep makedirs
+from os  import sep, makedirs
 from bs4 import BeautifulSoup
 from bs4 import NavigableString
 
-BASE_URL     = r'^(.+?)(?<!/)/(?!/)'
+BASE_URL     = r'(https?://[^/]+)'
 #HTTP_URL     = r'https?://(?:\w+)(?:\.\w+)?(?::[1-9]\d+)?(?:/[^/]/?)(?P)\?(?<>[^/&=:])=(?P)'
 ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
                         itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
@@ -1614,9 +1614,13 @@ def generate_headers():
         'Accept-Language': 'en-us,en;q=0.5',
     }
 
-def is_image(link, session):
-    response = session.head(link)
+def is_image(url, session):
+    response = session.head(url)
+
+    if not response.status_code == requests.codes.ok:
+        return False
     if re.match('image/', response.headers.get('content-type', '')):
+        print(url)
         return True
     return False
 
@@ -1625,8 +1629,8 @@ def give_hint(**kargs):
     if page is None: return
     dom = BeautifulSoup(page, 'html.parser')
 
-    # Some sites(e.g Duckduckgo) requires HTTP POST to get the next/previous page
     if action := kargs.get('action'):
+
         valid_submit = False
         submit_value = kargs.get('submit_value')
         post_data    = {}
@@ -1634,8 +1638,8 @@ def give_hint(**kargs):
         for form in dom.find_all('form'):
             if not re.match(action, form['action']):
                 continue
-            post_data['payload'] = {}
 
+            post_data['payload'] = {}
             for tag in form.contents:
                 if isinstance(tag, NavigableString):
                     continue
@@ -1644,6 +1648,7 @@ def give_hint(**kargs):
                     continue
                 if tag.get('name') is None or not tag.name == 'input':
                     continue
+
                 post_data['payload'][tag.get('name')] = tag.get('value')
 
             if len( post_data['payload'].keys() ) > 0 and (
@@ -1696,24 +1701,30 @@ def prepend_base_url(base_url, href):
         return href
     elif href.startswith('//'):
         return 'http:' + href
-    elif re.match(r'/[^/]|#|\?', href):
-        return base_url + '/' + re.match(r'/?(.+)', href).group(1)
-    return href
+    elif re.match(r'/|#|\?', href):
+        return base_url + '/' + re.match(r'/?(.*)', href).group(1)
+    return None
 
 def strip_base_url(url):
-    if re.match('https?://', url):
-        return '/' + re.sub(BASE_URL, '', url)
+    if re.match(BASE_URL, url):
+        return re.sub(BASE_URL, '', url)
     return url
 
 def get_base_url(link):
-    matched = re.match(BASE_URL, link)
-    if matched: return matched.group(1)
+    if matched := re.match(BASE_URL, link):
+        return matched.group(1)
     return None
 
 def http_x(method, session, link, **kargs):
     response = session.get(link, **kargs) if method == 'GET' else session.post(link, **kargs)
 
     if response.status_code == requests.codes.ok:
+        """
+        for i in response.headers.keys():
+            print(i + ' : ' + response.headers[i])
+        print(response.text)
+        exit(1)
+        """
         return response.text
     raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
 
@@ -1752,7 +1763,7 @@ def download_file(link, session, **kargs):
         filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
 
     filename = sanitize_filename(filename)
-    makedirs(path, is_ok = True)
+    makedirs(path, exist_ok = True)
     fd = open(re.match('(.+[^/])/*$', path).group(1) + sep + filename, 'wb')
     for chunk in response.iter_content(chunk_size = 128):
         fd.write(chunk)
