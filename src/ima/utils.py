@@ -5,16 +5,30 @@ import random
 import requests
 import locale
 import itertools
+import string
+import base64
 
 from os  import sep, makedirs
 from bs4 import BeautifulSoup
 from bs4 import NavigableString
 
-BASE_URL     = r'(https?://[^/]+)'
-#HTTP_URL     = r'https?://(?:\w+)(?:\.\w+)?(?::[1-9]\d+)?(?:/[^/]/?)(?P)\?(?<>[^/&=:])=(?P)'
 ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
                         itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
                                         'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y')))
+BASE_URL = r'(https?://[^/]+)'
+#HTTP_URL = r'https?://(?:\w+)(?:\.\w+)?(?::[1-9]\d+)?(?:/[^/]/?)(?P)\?(?<>[^/&=:])=(?P)'
+
+MIMETYPE_EXT = {
+    'apng'   : 'apng',
+    'jpeg'   : 'jpg',
+    'svg+xml': 'svg',
+    'webp'   : 'webp',
+    'bmp'    : 'bmp',
+    'png'    : 'png',
+    'tiff'   : 'tif',
+    'x-icon' : 'ico',
+}
+
 def preferred_encoding():
     try:
         pref = locale.getpreferredencoding()
@@ -22,6 +36,9 @@ def preferred_encoding():
     except Exception:
         pref = 'UTF-8'
     return pref
+
+
+ENCODING = preferred_encoding()
 
 def random_user_agent():
     _USER_AGENT_TPL  = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36'
@@ -1612,17 +1629,19 @@ def generate_headers():
         'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Encoding': 'gzip, deflate',
         'Accept-Language': 'en-us,en;q=0.5',
+        'Connection'     : 'Keep-Alive',
     }
 
 def is_image(url, session):
-    response = session.head(url)
+    if url.startswith('http'):
+        response = http_x('HEAD', session, url)
+        if matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')):
+            #print(url)
+            return matched.group(1)
+    elif matched := re.match('data:image/([^,;]+)', url):
+        return matched.group(1)
 
-    if not response.status_code == requests.codes.ok:
-        return False
-    if re.match('image/', response.headers.get('content-type', '')):
-        print(url)
-        return True
-    return False
+    return None
 
 def give_hint(**kargs):
     page = kargs.get('page')
@@ -1681,10 +1700,9 @@ def give_hint(**kargs):
             hrefs_like.append(href)
 
         content = a.string
-        encoding = preferred_encoding()
         if tag_content and (
                 content
-            and re.match(tag_content, content.encode(encoding).decode(encoding))
+            and re.match(tag_content, content.encode(ENCODING).decode(ENCODING))
             and is_of_this_domain(href)
         ):
             return href
@@ -1716,16 +1734,25 @@ def get_base_url(link):
     return None
 
 def http_x(method, session, link, **kargs):
-    response = session.get(link, **kargs) if method == 'GET' else session.post(link, **kargs)
+    response = None
 
+    if method == 'GET':
+        response = session.get(link, **kargs) 
+    elif method == 'HEAD':
+        response = session.head(link, **kargs)
+    elif method == 'POST':
+        response = session.post(link, **kargs)
+
+    if response is None: return None
     if response.status_code == requests.codes.ok:
         """
+        # DEBUG RESPONSE
         for i in response.headers.keys():
             print(i + ' : ' + response.headers[i])
         print(response.text)
         exit(1)
         """
-        return response.text
+        return response
     raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
 
 def sanitize_filename(string, restricted=False):
@@ -1749,21 +1776,57 @@ def sanitize_filename(string, restricted=False):
     string = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), string)
     return ''.join(map(replace_insane, string))
 
-def download_file(link, session, **kargs):
-    path     = kargs.get('path', '.')
-    filename = kargs.get('filename')
-    response = session.get(link, stream = True)
+def download_img(url, session, **kargs):
+    filename   = kargs.get('filename')
+    mime_type  = kargs.get('mime_type')
+    chunk_size = kargs.get('rate', 128)
+    path       = re.match('(.+[^' + sep + '])' + sep + '*$', kargs.get('path', '.')).group(1)
 
-    if not response.status_code == requests.codes.ok:
-        raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
+    # Some small subutils
+    def add_extension(filename, mime_type):
+        if mime_type or not re.search('\.[^.]$', filename):
+                filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
+        return filename
+    def random_string(length):
+        letters = string.ascii_letters
+        return ''.join(random.choices(letters) for i in range(length))
 
-    if filename is None:
-        cd       = response.headers.get('content-disposition', '')
-        matched  = re.search('attachment; filename="(.+)"', cd)
-        filename = matched.group(1) if matched else re.match('(?:https?://)?.*/([^/]+)/?', link).group(1)
-
-    filename = sanitize_filename(filename)
     makedirs(path, exist_ok = True)
-    fd = open(re.match('(.+[^/])/*$', path).group(1) + sep + filename, 'wb')
-    for chunk in response.iter_content(chunk_size = 128):
-        fd.write(chunk)
+    if url.startswith('http'):
+        response = http_x('GET', session, url, stream = True)
+
+        if not filename:
+            matched = re.search('filename="((?:[^"]++|\\")+)"', response.headers.get('content-disposition', ''))
+            filename = matched.group(1) if matched else random_string(10)
+
+        filename = add_extension(filename, mime_type)
+        filename = sanitize_filename(filename)
+
+        # Start streaming the file ...
+        current_size = 0
+        file_size    = response.headers.get('content-length')
+        fd = open(path + sep + filename, 'wb')
+        for chunk in response.iter_content(chunk_size = chunk_size):
+            fd.write(chunk)
+            current_size += chunk_size 
+            yield ( ((current_size / file_size) * 100) if file_size else current_size )
+
+    elif url.startswith('data:'):
+        if filename is None:
+            filename = add_extension(random_string(10), mime_type)
+        fd = open(path + sep + filename, 'wb')
+
+        decoder = None
+        data_encoding = re.match('data:image/[^;,]+(,[^;]+)?;', url).group(1)
+        data          = re.sub('^data.*?;', '', url)
+        codec_utils = {
+            'base85': base64.b85decode,
+            'base64': base64.b64decode,
+            'base32': base64.b32decode,
+            'base16': base64.b16decode,
+        }
+
+        if len(data_encoding) > 0 and decoder := codec_utils.get(data_encoding):
+            fd.write(decoder(data.encode(ENCODING)).decode(ENCODING))
+        fd.write(data)
+        yield 100

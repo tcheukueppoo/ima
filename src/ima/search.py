@@ -6,10 +6,10 @@ import .utils
 
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
-from .image       import Image
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
+from .image       import Image
 
 
 class Search:
@@ -137,7 +137,7 @@ class Search:
                 'GET',
                 self.session,
                 hint
-            )
+            ).text
 
         # HTTP POST, DuckDuckGO
         elif isinstance(hint, dict):
@@ -147,7 +147,7 @@ class Search:
                 self.session,
                 hint['action'],
                 data = hint['payload']
-            )
+            ).text
 
         return False
 
@@ -220,7 +220,7 @@ class Search:
                     'GET',
                     self.session,
                     link
-                )
+                ).text
             )
 
     def next(self, **kargs):
@@ -232,7 +232,7 @@ class Search:
                 'GET',
                 self.session,
                 self.url
-            )
+            ).text
         else:
             hint = self._give_hint('NEXT')
             if hint is None or self._load_page(hint) is False:
