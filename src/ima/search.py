@@ -313,7 +313,7 @@ class Search:
                 link   = b64decode(link.encode(encoding)).decode(encoding)
                 exists = False
 
-                i      = 0
+                i = 0
                 while i < len(links):
                     if link == links[i] and self.query == query:
                         frequency = str(int(frequency) + 1)

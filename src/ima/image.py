@@ -26,19 +26,19 @@ class Image:
     def _uniquefy_links(links):
         uniq_links = []
 
-        while True:
+        while len(links) != 0:
             uniq_link = links.pop(0)
 
-            i = 1
+            i = 0
             while i < len(links):
-                if links[i]['url'] == uniq_link['url']:
-                    candidate = links.pop(i)
-                    if candidate['score'] > uniq_link['score']:
-                        uniq_link = candidate
                 i += 1
+                if links[i]['url'] != uniq_link['url']:
+                    continue
+                candidate = links.pop(i)
+                if candidate['score'] > uniq_link['score']:
+                    uniq_link = candidate
 
             uniq_links.append(uniq_link)
-            if len(links) == 0: break
 
         return uniq_links
 
@@ -73,6 +73,7 @@ class Image:
         links       = []
         score_links = kargs.get('score_with', self._builtin_score)
         count       = kargs.get('count', inf)
+        sort        = kargs.get('sort', False)
 
         self.page = utils.http_x(
             'GET',
@@ -93,12 +94,13 @@ class Image:
 
         # NOTE: Get unique links *after* scoring!
         links = Image._uniquefy_links(links)
-        links.sort(key = lambda m: m['score'], reverse = True)
+        if sort:
+            links.sort(key = lambda m: m['score'], reverse = True)
 
         return links[0:count]
 
     def download_from(self, link, **kargs):
-        return download_img(
+        return download_image(
             link if not isinstance(link, dict) else link.get('url', ''),
             session,
             **kargs

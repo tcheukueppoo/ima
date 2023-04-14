@@ -1635,7 +1635,7 @@ def generate_headers():
 def is_image(url, session):
     if url.startswith('http'):
         response = http_x('HEAD', session, url)
-        if matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')):
+        if response and ( matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')) ):
             #print(url)
             return matched.group(1)
     elif matched := re.match('data:image/([^,;]+)', url):
@@ -1776,49 +1776,59 @@ def sanitize_filename(string, restricted=False):
     string = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), string)
     return ''.join(map(replace_insane, string))
 
-def download_img(url, session, **kargs):
+def download_image(url, session, **kargs):
     filename   = kargs.get('filename')
     mime_type  = kargs.get('mime_type')
     chunk_size = kargs.get('rate', 128)
+    overwrite  = kargs.get('overwrite', False)
     path       = re.match('(.+[^' + sep + '])' + sep + '*$', kargs.get('path', '.')).group(1)
 
     # Some small subutils
     def add_extension(filename, mime_type):
-        if mime_type or not re.search('\.[^.]$', filename):
+        if mime_type or not re.search(r'\.[^\.]*$', filename):
                 filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
         return filename
     def random_string(length):
-        letters = string.ascii_letters
-        return ''.join(random.choices(letters) for i in range(length))
+        letters = list(string.ascii_letters)
+        return ''.join(random.choice(letters) for i in range(1, length))
 
     makedirs(path, exist_ok = True)
     if url.startswith('http'):
         response = http_x('GET', session, url, stream = True)
+        if response is None:
+            return -1
 
         if not filename:
-            matched = re.search('filename="((?:[^"]++|\\")+)"', response.headers.get('content-disposition', ''))
-            filename = matched.group(1) if matched else random_string(10)
+            matched  = re.search(r'filename="((?:[^"]+|\\")+)"', response.headers.get('content-disposition', ''))
+            filename = matched.group(1) if matched else re.search(r'([^/]+)/?$', url).group(1)
 
         filename = add_extension(filename, mime_type)
         filename = sanitize_filename(filename)
 
         # Start streaming the file ...
         current_size = 0
-        file_size    = response.headers.get('content-length')
-        fd = open(path + sep + filename, 'wb')
+        file_size    = int(response.headers.get('content-length', 0))
+        filename     = path + sep + filename
+        if overwrite is False and os.path.exists(filename): return -2
+        fd = open(filename, 'wb')
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
-            current_size += chunk_size 
-            yield ( ((current_size / file_size) * 100) if file_size else current_size )
+            current_size += len(chunk)
+            yield ( ((current_size / file_size) * 100) if file_size != 0 else current_size )
+        # MB/MiB, GB/GiB?
+        if current_size != file_size: yield 100
 
     elif url.startswith('data:'):
         if filename is None:
             filename = add_extension(random_string(10), mime_type)
-        fd = open(path + sep + filename, 'wb')
+        filename = path + sep + filename
+        if overwrite is False and os.path.exists(filename): return -2
+        fd = open(filename, 'wb')
 
         decoder = None
-        data_encoding = re.match('data:image/[^;,]+(,[^;]+)?;', url).group(1)
+        data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
         data          = re.sub('^data.*?;', '', url)
+        print(data)
         codec_utils = {
             'base85': base64.b85decode,
             'base64': base64.b64decode,
@@ -1826,7 +1836,7 @@ def download_img(url, session, **kargs):
             'base16': base64.b16decode,
         }
 
-        if len(data_encoding) > 0 and decoder := codec_utils.get(data_encoding):
+        if len(data_encoding) > 0 and (decoder := codec_utils.get(data_encoding)):
             fd.write(decoder(data.encode(ENCODING)).decode(ENCODING))
-        fd.write(data)
+        fd.write(data.encode(ENCODING))
         yield 100
