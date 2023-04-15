@@ -8,9 +8,10 @@ import itertools
 import string
 import base64
 
-from os  import sep, makedirs
-from bs4 import BeautifulSoup
-from bs4 import NavigableString
+from os      import sep, makedirs
+from os.path import exists
+from bs4     import BeautifulSoup
+from bs4     import NavigableString
 
 ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
                         itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
@@ -1809,7 +1810,7 @@ def download_image(url, session, **kargs):
         current_size = 0
         file_size    = int(response.headers.get('content-length', 0))
         filename     = path + sep + filename
-        if overwrite is False and os.path.exists(filename): return -2
+        if overwrite is False and exists(filename): return -2
         fd = open(filename, 'wb')
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
@@ -1822,21 +1823,22 @@ def download_image(url, session, **kargs):
         if filename is None:
             filename = add_extension(random_string(10), mime_type)
         filename = path + sep + filename
-        if overwrite is False and os.path.exists(filename): return -2
-        fd = open(filename, 'wb')
+        if overwrite is False and exists(filename): return -2
 
-        decoder = None
         data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
-        data          = re.sub('^data.*?;', '', url)
-        print(data)
-        codec_utils = {
+        data          = re.sub('^data:.*,', '', url).encode('ascii')
+        codec_utils   = {
             'base85': base64.b85decode,
             'base64': base64.b64decode,
             'base32': base64.b32decode,
             'base16': base64.b16decode,
         }
 
+        fd = open(filename, 'wb')
         if len(data_encoding) > 0 and (decoder := codec_utils.get(data_encoding)):
-            fd.write(decoder(data.encode(ENCODING)).decode(ENCODING))
-        fd.write(data.encode(ENCODING))
+            if missing_padding := (len(data) % 4):
+                data += b'=' * (4 - missing_padding)
+            fd.write(decoder(data))
+        else:
+            fd.write(data)
         yield 100

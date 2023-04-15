@@ -2,6 +2,7 @@
 
 from ima.image import Image
 
+img  = Image()
 urls = (
     'https://unsplash.com',
     'https://wallpapercave.com/',
@@ -9,10 +10,9 @@ urls = (
     'https://pixabay.com/',
 )
 
-img = Image()
-
 for url in urls:
     img.set_url(url)
-    if links := img.get_links(count = 4):
-        for link in links:
-            print(link)
+    links = img.get_links(count = 4):
+    if not links: continue
+    for link in links:
+        print(link)
