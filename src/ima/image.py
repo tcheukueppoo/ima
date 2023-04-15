@@ -1,9 +1,9 @@
 import re
 import requests
-import utils
 
 from bs4    import BeautifulSoup
 from math   import inf
+from .      import utils
 
 encoding = utils.preferred_encoding()
 
@@ -16,7 +16,6 @@ class Image:
         self.subject  = kargs.get('subject')
 
         self.session.headers.update(utils.generate_headers())
-        #self.session.headers.update({'Cookie': 'anonymous_user_id=8a865a563e9842c29f02fa839fb8b95f; is_human=1; _sp_ses.aded=*; _sp_id.aded=43415c2c-ed19-424a-a4e2-7fd306ed9e39.1679928172.4.1681228178.1680806903.5a630883-8fd7-4c75-8d48-9c4cfb61ab17; _ga_C74ZRXSHC0=GS1.1.1681227557.4.1.1681228179.0.0.0; lang=fr; _ga=GA1.2.1182445107.1679928179; _gid=GA1.2.1556816120.1681227557; _gat_UA-20223345-1=1; OptanonConsent=isGpcEnabled=0&datestamp=Tue+Apr+11+2023+16%3A49%3A42+GMT%2B0100+(WAT)&version=6.31.0&isIABGlobal=false&hosts=&consentId=230861bd-9f6b-4d37-a423-df7f5233b79e&interactionCount=0&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1&AwaitingReconsent=false; csrftoken=jermqRVu875v353wHgwy61PL8a8n6vFAKGjGQTQSChOjkmrHOEWGDGOsuoTgX9B3'})
 
     def set_url(self, url):
         self.url      = url
@@ -59,7 +58,7 @@ class Image:
             return None
 
         url = url if url.startswith('data:image/') else utils.prepend_base_url(self.base_url, url)
-        if not ( url and mime_type := utils.is_image(url, self.session) ):
+        if not ( url and ( mime_type := utils.is_image(url, self.session) ) ):
             return None
 
         return {
@@ -107,7 +106,7 @@ class Image:
         )
             
     def download(self, **kargs):
-        links = self.get_links(**kargs):
+        links = self.get_links(**kargs)
         if not links: return
 
         for link in links:

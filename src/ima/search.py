@@ -2,7 +2,6 @@
 
 import re
 import requests
-import .utils
 
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
@@ -10,14 +9,15 @@ from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
 from .image       import Image
+from .            import utils
 
 
 class Search:
 
     # Static Vars
-    encoding    = preferred_encoding()
+    encoding    = utils.preferred_encoding()
     search_urls = {
-        'yahoo'     : 'https://search.yahoo.com/search/?p={0}'
+        'yahoo'     : 'https://search.yahoo.com/search/?p={0}',
         'duckduckgo': 'https://html.duckduckgo.com/html/?q={0}',
         'google'    : 'https://www.google.com/search?q={0}',
     }
@@ -80,7 +80,7 @@ class Search:
         return self
 
     def _decode_url(self, url):
-        return re.sub(r'%([a-fA-F0-9]{2})', lambda m: bytearray.fromhex(m.group(1)).decode(encoding), url)
+        return re.sub(r'%([a-fA-F0-9]{2})', lambda m: bytearray.fromhex(m.group(1)).decode(Search.encoding), url)
 
     def _extract_links(self):
         NOT_YAHOO      = r'https://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com))'
@@ -167,7 +167,6 @@ class Search:
                                      .replace('|', '\|') \
                                      .replace('(', '\(') \
                                      .replace(')', '\)') + '&ei=[^&]+&start=\d+&sa=N'
-
         TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*'            # need to add more ...
         TAG_CONTENT_BACK = '\s*' + str(self.index - 1) + '|' + 'Prev(?:ious)?' + '|' + 'Précédent' + '\s*' # same here ...
 
@@ -208,6 +207,9 @@ class Search:
             **MISC[sense][self.engine]
         )
 
+        if hint is None:
+            print("hint is null")
+            exit(1)
         return hint
 
     def convert_links_to_image_objects(self, links):
@@ -309,8 +311,8 @@ class Search:
 
             while record := fd.readline():
                 query, link, frequency = re.split(',', record)
-                query  = b64decode(query.encode(encoding)).decode(encoding)
-                link   = b64decode(link.encode(encoding)).decode(encoding)
+                query  = b64decode(query.encode(Search.encoding)).decode(Search.encoding)
+                link   = b64decode(link.encode(Search.encoding)).decode(Search.encoding)
                 exists = False
 
                 i = 0
@@ -326,8 +328,8 @@ class Search:
                     tmp_fd.write(record)
         finally:
             for link in links:
-                query = b64encode(self.query.encode(encoding)).decode(encoding)
-                tmp_fd.write(query + ',' + b64encode(link.encode(encoding)).decode(encoding) + ",1\n")
+                query = b64encode(self.query.encode(Search.encoding)).decode(Search.encoding)
+                tmp_fd.write(query + ',' + b64encode(link.encode(Search.encoding)).decode(Search.encoding) + ",1\n")
 
         if found_file:
             unlink(file)
@@ -342,8 +344,8 @@ class Search:
         with open(self.save_file, 'r') as fd:
             while record := fd.readline():
                 splited    = re.split(',', record)
-                splited[0] = b64decode(splited[0].encode(encoding)).decode(encoding)
-                splited[1] = b64decode(splited[1].encode(encoding)).decode(encoding)
+                splited[0] = b64decode(splited[0].encode(Search.encoding)).decode(Search.encoding)
+                splited[1] = b64decode(splited[1].encode(Search.encoding)).decode(Search.encoding)
 
                 if query and splited[0] != query:
                     continue
