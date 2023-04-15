@@ -1826,7 +1826,7 @@ def download_image(url, session, **kargs):
         if overwrite is False and exists(filename): return -2
 
         data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
-        data          = re.sub('^data:.*,', '', url).encode('ascii')
+        data          = url.partition(',')[2].encode('ascii')
         codec_utils   = {
             'base85': base64.b85decode,
             'base64': base64.b64decode,
