@@ -1691,19 +1691,23 @@ def get_post_data(page, action, submit_value):
     return post_data if len( post_data.keys() ) > 1 else None
 
 def match_hrefs(page, href_like):
-    hrefs = []
-    dom   = BeautifulSoup(page, 'html.parser')
+    dom = BeautifulSoup(page, 'html.parser')
 
+    hrefs = []
     for a in dom.find_all('a'):
         href = a.get('href')
-        if href and ( matched := re.search(href_like, href) ):
-            added = True
-            for href in hrefs:
-                if href['href'] == href:
-                    added = False
+
+        if not href: continue
+        if matched := re.search(href_like, href):
+            added   = False
+            page_id = matched.group(1)
+
+            for h in hrefs:
+                if h['id'] == page_id:
+                    added = True
                     break
-            if not added:
-                hrefs.append({ 'href': href, 'id': matched.group(1) })
+            if added: continue
+            hrefs.append({ 'href': href, 'id': page_id })
 
     return hrefs if len(hrefs) > 0 else None
 

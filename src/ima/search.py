@@ -132,6 +132,23 @@ class Search:
 
         return urls
 
+    def _get_request_data(self, sense):
+        request_data = None
+
+        if self.engine == 'google' or self.engine == 'yahoo':
+            href_regex = {
+                'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
+                'yahoo' : r'https://search\.yahoo\.com/search;[^?]+\?p=[^&]+&.*(?<=&)b=(\d+)&',
+            }
+
+            if hrefs := utils.match_hrefs(self.page, href_regex[self.engine]):
+                hrefs.sort(key = lambda m: m['id'])
+                request_data = hrefs[ 0 if sense == 'previous' or self.index == 1 else 1 ]['href']
+        elif self.engine == 'duckduckgo':
+            request_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
+
+        return request_data
+
     def _load_page(self, request_data):
         # Simple link to follow
         if isinstance(hint, str):
@@ -148,31 +165,7 @@ class Search:
                 data = request_data['payload']
             ).text
 
-    def _get_request_data(self, sense):
-        if self.engine == 'google' or self.engine == 'yahoo':
-            href_regex = {
-                'google': r'&ei=[^&]+&start=(\d+)&sa=N',
-                'yahoo' : r'&ei=UTF-8&.+?&b=(\d+)&',
-            }
-
-            if hrefs := utils.match_hrefs(self.page, href_regex[self.engine]):
-                hrefs.sort(key = lambda m: m['id'])
-                for i in hrefs: print(i)
-                exit(1)
-                href         = hrefs[1 if self.index == 1 else 2] if sense == 'next' else hrefs[1]
-                request_data = href['href']
-
-        elif self.engine == 'duckduckgo':
-            request_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
-
-        if request_data is None:
-            #print(BeautifulSoup(self.page, 'html.parser').prettify())
-            exit(1)
-        else:
-            print(request_data)
-        return request_data
-
-    def convert_links_to_image_objects(self, links):
+    def _convert_links_to_image_objects(self, links):
         for link in links:
             yield Image(
                 subject  = self.query,
@@ -191,8 +184,8 @@ class Search:
         if self.index == 0:
             self.page = utils.http_x('GET', self.session, self.url).text
         else:
-            print(BeautifulSoup(self.page, 'html.parser').prettify())
-            exit(1)
+            #print(BeautifulSoup(self.page, 'html.parser').prettify())
+            #exit(1)
             request_data = self._get_request_data('next')
             if request_data is None: return None 
             self._load_page(request_data)
@@ -203,7 +196,7 @@ class Search:
             self._save(links)
 
         if as_image:
-            return self.convert_links_to_image_objects(links)
+            return self._convert_links_to_image_objects(links)
         return links
 
     def back(self, **kargs):

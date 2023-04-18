@@ -12,7 +12,7 @@ while results := ima.next():
 
 # now with Google!
 i = 1
-ima.set_engine('yahoo').set_query('Edward Elric')
+ima.set_engine('duckduckgo').set_query('Edward Elric')
 while results := ima.next():
     if i == 2:
         results = ima.back()
