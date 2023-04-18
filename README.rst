@@ -1,31 +1,5 @@
-.. These are examples of badges you might want to add to your README:
-   please update the URLs accordingly
-
-    .. image:: https://api.cirrus-ci.com/github/<USER>/ima.svg?branch=main
-        :alt: Built Status
-        :target: https://cirrus-ci.com/github/<USER>/ima
-    .. image:: https://readthedocs.org/projects/ima/badge/?version=latest
-        :alt: ReadTheDocs
-        :target: https://ima.readthedocs.io/en/stable/
-    .. image:: https://img.shields.io/coveralls/github/<USER>/ima/main.svg
-        :alt: Coveralls
-        :target: https://coveralls.io/r/<USER>/ima
-    .. image:: https://img.shields.io/pypi/v/ima.svg
-        :alt: PyPI-Server
-        :target: https://pypi.org/project/ima/
-    .. image:: https://img.shields.io/conda/vn/conda-forge/ima.svg
-        :alt: Conda-Forge
-        :target: https://anaconda.org/conda-forge/ima
-    .. image:: https://pepy.tech/badge/ima/month
-        :alt: Monthly Downloads
-        :target: https://pepy.tech/project/ima
-    .. image:: https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter
-        :alt: Twitter
-        :target: https://twitter.com/ima
-
 .. image:: https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold
-    :alt: Project generated with PyScaffold
-    :target: https://pyscaffold.org/
+    :alt: Ima logo
 
 |
 
@@ -33,17 +7,25 @@
 ima
 ===
 
+- intro
+- command line utility
+- library usage
+- API documentation
+- license
+- author
 
-    Query for and download images on the internet
+    Query with search engines and download images
 
+ima is an extremely tiny library and command line utility which permits you to query search engines(e.g DuckDuckGo)
+and download images from web pages.
 
-A longer description of your project goes here...
+ima might be a utility or library of choice for the following purpose:
 
+- Downloading images from the internet to build up your dataset
+- Searching on the internet with Google, DuckDuckGo or Yahoo. You would want to
+  use multiple search engines to obtain better results.
+- Caching your search results to later on use them locally
 
-.. _pyscaffold-notes:
+```{python}
 
-Note
-====
-
-This project has been set up using PyScaffold 4.4. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+```

@@ -8,9 +8,8 @@ from bs4          import BeautifulSoup
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
-from .image       import Image
 from .            import utils
-
+from .image       import Image
 
 class Search:
 
@@ -83,13 +82,19 @@ class Search:
         return re.sub(r'%([a-fA-F0-9]{2})', lambda m: bytearray.fromhex(m.group(1)).decode(Search.encoding), url)
 
     def _extract_links(self):
-        NOT_YAHOO      = r'https://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com))'
-        NOT_GOOGLE     = r'https://(?!(?:(?:\w+\.)*?google\.com))'
-        NOT_DUCKDUCKGO = r'https://(?!(?:(?:\w+\.)*?duckduckgo\.com))'
-        HREF_REGEX     = {
-            'google'    : r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
-            'yahoo'     : r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
-            'duckduckgo': r'uddg=https?[^&]+',
+        HREF_REGEX = {
+            'google': [
+                r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
+                r'https://(?!(?:(?:\w+\.)*?google\.com))',
+            ],
+            'yahoo': [
+                r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
+                r'https://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com))',
+            ],
+            'duckduckgo': [
+                r'uddg=https?[^&]+',
+                r'https://(?!(?:(?:\w+\.)*?duckduckgo\.com))',
+            ],
         }
 
         urls = set()
@@ -97,124 +102,78 @@ class Search:
         for a in dom.find_all('a'):
             href = a.get('href')
 
-            if href is None: continue
+            if href is None:
+                continue
             if self.engine == 'yahoo':
-                matched = re.match(HREF_REGEX[self.engine], href)
-
-                if matched:
+                if matched := re.match(HREF_REGEX[self.engine][0], href):
                     url = self._decode_url(matched.group(1))
-                    if re.match(NOT_YAHOO, url): urls.add(url)
+                    if re.match(HREF_REGEX[self.engine][1], url):
+                        urls.add(url)
                 continue
 
             added = False
             query = parse_url(href).query
             if query is not None:
-                if matched := re.search(HREF_REGEX[self.engine], query):
+                if matched := re.search(HREF_REGEX[self.engine][0], query):
                     param, url = matched.group().split('=')
                     url = self._decode_url(url)
 
-                    # Google: some urls given via url= parameter are images, ignore them
+                    # Google: some urls given via url= parameter are images, ignore them!
                     if self.engine != 'google' or (
                         param != 'url' or not utils.is_image(url, client = self.session)
                     ):
                         added = True
                         urls.add(url)
 
-            # Some Duckduckgo result links are more than CLEAN, found them?
-            if not added and not href.startswith('/'):
-                if self.engine == 'google' and re.match(NOT_GOOGLE, href):
-                    urls.add(href)
-                elif self.engine == 'duckduckgo' and re.match(NOT_DUCKDUCKGO, href):
+            # SIMPLE url
+            if not ( added and  href.startswith('/') ):
+                if re.match(HREF_REGEX[self.engine][1], href):
                     urls.add(href)
 
         return urls
 
-    def _load_page(self, hint):
+    def _load_page(self, request_data):
         # Simple link to follow
         if isinstance(hint, str):
-            hint      = utils.prepend_base_url(self.base_url, hint)
-            self.page = utils.http_x(
-                'GET',
-                self.session,
-                hint
-            ).text
+            request_data = utils.prepend_base_url(self.base_url, hint)
+            self.page    = utils.http_x('GET', self.session, hint).text
 
         # HTTP POST, DuckDuckGO
-        elif isinstance(hint, dict):
-            hint['action'] = utils.prepend_base_url(self.base_url, hint['action'])
-            self.page      = utils.http_x(
+        elif isinstance(request_data, dict):
+            request_data['action'] = utils.prepend_base_url(self.base_url, hint['action'])
+            self.page              = utils.http_x(
                 'POST',
                 self.session,
-                hint['action'],
-                data = hint['payload']
+                request_data['action'],
+                data = request_data['payload']
             ).text
 
-        return False
+    def _get_request_data(self, sense):
+        if self.engine == 'google' or self.engine == 'yahoo':
+            href_regex = {
+                'google': r'&ei=[^&]+&start=(\d+)&sa=N',
+                'yahoo' : r'&ei=UTF-8&.+?&b=(\d+)&',
+            }
 
-    def _give_hint(self, sense):
-        HREF_LIKE = utils.strip_base_url(self.url) \
-                                     .replace('\\', '\\\\') \
-                                     .replace('.', '\.') \
-                                     .replace('^', '\^') \
-                                     .replace('$', '\$') \
-                                     .replace('?', '\?') \
-                                     .replace('*', '\*') \
-                                     .replace('+', '\+') \
-                                     .replace('{', '\{') \
-                                     .replace('}', '\}') \
-                                     .replace('[', '\[') \
-                                     .replace(']', '\]') \
-                                     .replace('|', '\|') \
-                                     .replace('(', '\(') \
-                                     .replace(')', '\)') + '&ei=[^&]+&start=\d+&sa=N'
-        TAG_CONTENT_NEXT = '\s*' + str(self.index + 1) + '|' + 'Next' + '|' + 'Suivant' + '\s*'            # need to add more ...
-        TAG_CONTENT_BACK = '\s*' + str(self.index - 1) + '|' + 'Prev(?:ious)?' + '|' + 'Précédent' + '\s*' # same here ...
+            if hrefs := utils.match_hrefs(self.page, href_regex[self.engine]):
+                hrefs.sort(key = lambda m: m['id'])
+                for i in hrefs: print(i)
+                exit(1)
+                href         = hrefs[1 if self.index == 1 else 2] if sense == 'next' else hrefs[1]
+                request_data = href['href']
 
-        MISC = {
-            'NEXT': {
-                'yahoo' : { 'tag_content': TAG_CONTENT_NEXT },
-                'google': { 
-                    'tag_content': TAG_CONTENT_NEXT,
-                    'href_like'  : {
-                        'index': -1,
-                        're'   : HREF_LIKE,
-                    }
-                },
-                'duckduckgo': {
-                    'submit_value': 'Next',
-                    'action'      : '/html/',
-                },
-            },
-            'BACK': {
-                'yahoo' : { 'tag_content': TAG_CONTENT_BACK },
-                'google': {
-                    'tag_content': TAG_CONTENT_BACK,
-                    'href_like'  : {
-                        'index': -2,
-                        're'   : HREF_LIKE,
-                    }
-                },
-                'duckduckgo': {
-                    'submit_value': 'Previous',
-                    'action'      : '/html/',
-                },
-            },
-        }
+        elif self.engine == 'duckduckgo':
+            request_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
 
-        hint = utils.give_hint(
-            page     = self.page,
-            base_url = self.base_url,
-            **MISC[sense][self.engine]
-        )
-
-        if hint is None:
-            print("hint is null")
+        if request_data is None:
+            #print(BeautifulSoup(self.page, 'html.parser').prettify())
             exit(1)
-        return hint
+        else:
+            print(request_data)
+        return request_data
 
     def convert_links_to_image_objects(self, links):
         for link in links:
-
             yield Image(
                 subject  = self.query,
                 base_url = utils.get_base_url(link),
@@ -230,15 +189,13 @@ class Search:
         as_image = kargs.get('as_image', False)
 
         if self.index == 0:
-            self.page = utils.http_x(
-                'GET',
-                self.session,
-                self.url
-            ).text
+            self.page = utils.http_x('GET', self.session, self.url).text
         else:
-            hint = self._give_hint('NEXT')
-            if hint is None or self._load_page(hint) is False:
-                return None
+            print(BeautifulSoup(self.page, 'html.parser').prettify())
+            exit(1)
+            request_data = self._get_request_data('next')
+            if request_data is None: return None 
+            self._load_page(request_data)
 
         self.index += 1
         links = self._extract_links()
@@ -256,9 +213,9 @@ class Search:
         if self.index == 1:
             return None
 
-        self._load_page(self._give_hint('BACK'))
-
+        self._load_page(self._get_request_data('previous'))
         self.index -= 1
+
         links = self._extract_links()
         if save:
             self._save(links)

@@ -16,9 +16,7 @@ from bs4     import NavigableString
 ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
                         itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
                                         'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y')))
-BASE_URL = r'(https?://[^/]+)'
-#HTTP_URL = r'https?://(?:\w+)(?:\.\w+)?(?::[1-9]\d+)?(?:/[^/]/?)(?P)\?(?<>[^/&=:])=(?P)'
-
+BASE_URL     = r'(https?://[^/]+)'
 MIMETYPE_EXT = {
     'apng'   : 'apng',
     'jpeg'   : 'jpg',
@@ -1644,77 +1642,6 @@ def is_image(url, session):
 
     return None
 
-def give_hint(**kargs):
-    page = kargs.get('page')
-    if page is None: return
-    dom = BeautifulSoup(page, 'html.parser')
-
-    if action := kargs.get('action'):
-
-        valid_submit = False
-        submit_value = kargs.get('submit_value')
-        post_data    = {}
-
-        for form in dom.find_all('form'):
-            if not re.match(action, form['action']):
-                continue
-
-            post_data['payload'] = {}
-            for tag in form.contents:
-                if isinstance(tag, NavigableString):
-                    continue
-                if submit_value and tag.get('type') == 'submit' and re.match(submit_value, tag.get('value')):
-                    valid_submit = True
-                    continue
-                if tag.get('name') is None or not tag.name == 'input':
-                    continue
-
-                post_data['payload'][tag.get('name')] = tag.get('value')
-
-            if len( post_data['payload'].keys() ) > 0 and (
-                submit_value is None or (
-                    submit_value and valid_submit is True
-                )
-            ):
-                post_data['action'] = form['action']
-                break
-
-        if len( post_data.keys() ) > 1:
-            return post_data
-
-    href_like   = kargs.get('href_like')
-    tag_content = kargs.get('tag_content')
-    base_url    = kargs.get('base_url')
-
-    if href_like is None and tag_content is None: return None
-
-    def is_of_this_domain(href):
-        if re.match(r'/(?!/)', href) or href.startswith(base_url): return True
-        return False
-
-    hrefs_like = []
-    for a in dom.find_all('a'):
-        href = a.get('href')
-
-        if href is None: return
-        if href_like and re.match(href_like['re'], href):
-            hrefs_like.append(href)
-
-        content = a.string
-        if tag_content and (
-                content
-            and re.match(tag_content, content.encode(ENCODING).decode(ENCODING))
-            and is_of_this_domain(href)
-        ):
-            return href
-
-    if href_like and len(hrefs_like) > 0:
-        try:
-            href = hrefs_like[ href_like['index'] if href_like['index'] else 0 ]
-            return href if is_of_this_domain(href) else None
-        except:
-            return None
-
 def prepend_base_url(base_url, href):
     if re.match('https?', href):
         return href
@@ -1734,25 +1661,59 @@ def get_base_url(link):
         return matched.group(1)
     return None
 
+def get_post_data(page, action, submit_value):
+    dom          = BeautifulSoup(page, 'html.parser')
+    valid_submit = False
+    post_data    = {}
+
+    for form in dom.find_all('form'):
+        if not re.match(action, form['action']): continue
+
+        post_data['payload'] = {}
+        for tag in form.contents:
+            if isinstance(tag, NavigableString):
+                continue
+            if submit_value and tag.get('type') == 'submit' and re.match(submit_value, tag.get('value')):
+                valid_submit = True
+                continue
+            if tag.get('name') is None or not tag.name == 'input':
+                continue
+            post_data['payload'][tag.get('name')] = tag.get('value')
+
+        if len( post_data['payload'].keys() ) > 0 and (
+            submit_value is None or (
+                submit_value and valid_submit is True
+            )
+        ):
+            post_data['action'] = form['action']
+            break
+
+    return post_data if len( post_data.keys() ) > 1 else None
+
+def match_hrefs(page, href_like):
+    hrefs = []
+    dom   = BeautifulSoup(page, 'html.parser')
+
+    for a in dom.find_all('a'):
+        href = a.get('href')
+        if href and ( matched := re.search(href_like, href) ):
+            added = True
+            for href in hrefs:
+                if href['href'] == href:
+                    added = False
+                    break
+            if not added:
+                hrefs.append({ 'href': href, 'id': matched.group(1) })
+
+    return hrefs if len(hrefs) > 0 else None
+
 def http_x(method, session, link, **kargs):
     response = None
+    if   method == 'GET':  response = session.get(link, **kargs) 
+    elif method == 'HEAD': response = session.head(link, **kargs)
+    elif method == 'POST': response = session.post(link, **kargs)
 
-    if method == 'GET':
-        response = session.get(link, **kargs) 
-    elif method == 'HEAD':
-        response = session.head(link, **kargs)
-    elif method == 'POST':
-        response = session.post(link, **kargs)
-
-    if response is None: return None
-    if response.status_code == requests.codes.ok:
-        """
-        # DEBUG RESPONSE
-        for i in response.headers.keys():
-            print(i + ' : ' + response.headers[i])
-        print(response.text)
-        exit(1)
-        """
+    if response and response.status_code == requests.codes.ok:
         return response
     raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
 
