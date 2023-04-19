@@ -8,8 +8,10 @@ from bs4          import BeautifulSoup
 from base64       import b64decode, b64encode
 from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
-from .            import utils
-from .image       import Image
+
+from .           import utils
+from .image      import Image
+from .exceptions import OutOfBoundError, UnsupportedEngine
 
 class Search:
 
@@ -24,7 +26,7 @@ class Search:
     @staticmethod
     def check_engine(engine):
         if not engine in Search.search_urls.keys():
-            raise Exception('search engine <' + engine + '> is unsupported')
+            raise UnsupportedEngine
 
     @staticmethod
     def get_url(engine, query):
@@ -34,8 +36,9 @@ class Search:
         self.engine = kargs.get('engine', 'google')
         Search.check_engine(self.engine)
 
-        self.query = kargs.get('query', '')
-        self.url   = Search.get_url(self.engine, self.query)
+        self.href_id = None
+        self.query   = kargs.get('query', '')
+        self.url     = Search.get_url(self.engine, self.query)
         self._set_base_url()
 
         self.session = requests.Session()
@@ -60,6 +63,7 @@ class Search:
     def set_query(self, query):
         self.query = query
         self.url   = Search.get_url(self.engine, self.query)
+        self.index = 0
 
         return self
 
@@ -133,49 +137,54 @@ class Search:
         return urls
 
     def _get_request_data(self, sense):
-        request_data = None
+        if self.engine == 'duckduckgo':
+            return utils.get_post_data(self.page, '/html/', sense.capitalize())
 
-        if self.engine == 'google' or self.engine == 'yahoo':
-            href_regex = {
-                'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
-                'yahoo' : r'https://search\.yahoo\.com/search;[^?]+\?p=[^&]+&.*(?<=&)b=(\d+)&',
-            }
+        href_regex = {
+            'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
+            'yahoo' : r'https://search\.yahoo\.com/search;[^?]+\?p=[^&]+&.*(?<=&)b=(\d+)&',
+        }
 
-            if hrefs := utils.match_hrefs(self.page, href_regex[self.engine]):
-                hrefs.sort(key = lambda m: m['id'])
-                request_data = hrefs[ 0 if sense == 'previous' or self.index == 1 else 1 ]['href']
-        elif self.engine == 'duckduckgo':
-            request_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
+        hrefs = utils.match_hrefs(self.page, href_regex[self.engine])
+        if hrefs is None: return
 
-        return request_data
+        if len(hrefs) == 1:
+            if sense == 'back': raise CannotGoBack
+            return hrefs[0]['href']
+
+        hrefs.sort(key = lambda m: m['id'])
+        if len(hrefs) == 2:
+            return href[ 1 if sense == 'next' else 0 ]['href']
+
+        for c in range(0, len(hrefs)):
+            if self.href_id and self.href_id >= hrefs[c]['id']:
+                continue
+
+            print("id: ", self.href_id, "new id: ", hrefs[c]['id'])
+            self.href_id = hrefs[c]['id']
+            return hrefs[c]['href'] if sense == 'next' else hrefs[c - 2]['href']
 
     def _load_page(self, request_data):
         # Simple link to follow
-        if isinstance(hint, str):
-            request_data = utils.prepend_base_url(self.base_url, hint)
-            self.page    = utils.http_x('GET', self.session, hint).text
+        if isinstance(request_data, str):
+            self.page = utils.http_x(
+                'GET',
+                self.session,
+                utils.prepend_base_url(self.base_url, request_data)
+            ).text
 
         # HTTP POST, DuckDuckGO
         elif isinstance(request_data, dict):
-            request_data['action'] = utils.prepend_base_url(self.base_url, hint['action'])
-            self.page              = utils.http_x(
+            self.page = utils.http_x(
                 'POST',
                 self.session,
-                request_data['action'],
+                utils.prepend_base_url(self.base_url, request_data['action']),
                 data = request_data['payload']
             ).text
 
     def _convert_links_to_image_objects(self, links):
         for link in links:
-            yield Image(
-                subject  = self.query,
-                base_url = utils.get_base_url(link),
-                page     = utils.http_x(
-                    'GET',
-                    self.session,
-                    link
-                ).text
-            )
+            yield Image(subject = self.query, url = link)
 
     def next(self, **kargs):
         save     = kargs.get('save', self.save)
@@ -184,10 +193,9 @@ class Search:
         if self.index == 0:
             self.page = utils.http_x('GET', self.session, self.url).text
         else:
-            #print(BeautifulSoup(self.page, 'html.parser').prettify())
-            #exit(1)
             request_data = self._get_request_data('next')
-            if request_data is None: return None 
+            if request_data is None:
+                raise OutOfBoundError
             self._load_page(request_data)
 
         self.index += 1
@@ -197,15 +205,15 @@ class Search:
 
         if as_image:
             return self._convert_links_to_image_objects(links)
-        return links
+        return list(links)
 
     def back(self, **kargs):
         save     = kargs.get('save', self.save)
         as_image = kargs.get('as_image', False)
 
-        if self.index == 1:
-            return None
-
+        if self.index == 1 or self.index == 0:
+            raise OutOFBoundError
+        
         self._load_page(self._get_request_data('previous'))
         self.index -= 1
 
@@ -215,11 +223,11 @@ class Search:
 
         if as_image:
             return self.convert_links_to_image_objects(links)
-        return links
+        return list(links)
 
     def get_nlinks(self, **kargs):
         count = kargs.get('count', 1)
-        if count < 1: raise Exception('CountError: number of links to fetch must be > 0')
+        if count < 1: raise OutOfBoundError
 
         current_trys = 0
         links        = []

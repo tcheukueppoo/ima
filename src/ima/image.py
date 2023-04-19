@@ -3,6 +3,8 @@ import requests
 
 from bs4    import BeautifulSoup
 from math   import inf
+
+from requests.exceptions import InvalidURL
 from .      import utils
 
 encoding = utils.preferred_encoding()
@@ -10,10 +12,10 @@ encoding = utils.preferred_encoding()
 class Image:
 
     def __init__(self, **kargs):
-        self.url      = kargs.get('url', '')
+        self.url      = kargs.pop('url', '')
         self.base_url = utils.get_base_url(self.url)
         self.session  = requests.Session()
-        self.subject  = kargs.get('subject')
+        self.subject  = kargs.pop('subject')
 
         self.session.headers.update(utils.generate_headers())
 
@@ -21,96 +23,95 @@ class Image:
         self.url      = url
         self.base_url = utils.get_base_url(url)
 
-    @staticmethod
-    def _uniquefy_links(links):
-        uniq_links = []
+    def _builtin_score(self, content):
+        score   = 0
+        content = content.casefold()
 
-        while len(links) != 0:
-            uniq_link = links.pop(0)
+        if self.subject:
+            for token in re.split('\s+', self.subject):
+                token = token.casefold()
+                if content.find(token.casefold()) != -1:
+                    score += 1
+        return score
 
-            i = 0
-            while i < len(links):
-                i += 1
-                if links[i]['url'] != uniq_link['url']:
-                    continue
-                candidate = links.pop(i)
-                if candidate['score'] > uniq_link['score']:
-                    uniq_link = candidate
+    def _get_link(self, tag_object, tag, attributes, **kargs):
+        score_link  = kargs.pop('score_with', self._builtin_score)
+        min_score   = kargs.pop('min_score', 1)
+        use_content = kargs.pop('use_content', True)
 
-            uniq_links.append(uniq_link)
+        content = tag_object.get('alt') if tag_object.string == None else tag_object.string.encode(encoding).decode(encoding)
+        if use_content and content is None:
+            return
 
-        return uniq_links
+        for attribute in attributes:
+            url = tag_object.get(attribute)
+            if not url: continue
 
-    def _builtin_score(self, links):
-        for token in re.split('\s+', self.subject):
-            for link in links:
-                if link['content'].casefold().find(token.casefold()) != -1:
-                    link['score'] += 1
+            if attribute == 'srcset':
+                # Just get the first URL, NO OVERHEAD
+                if matched := re.search(r'\s*((?:https?:|/)?\S+(?<!,))\s*,?\s*(?:\d+(?:\.\d+)?(?:w|x))?', url):
+                    url = matched.groups(1)
+            elif re.match('#|javascript:', url):
+                continue
 
-        return links
+            if url.startswith('/'):
+                url = utils.prepend_base_url(self.base_url, url)
+            elif not ( url.startswith('data:image/') or url.startswith('http') ):
+                continue
 
-    def _get_link(self, tag_object, tag, attribute):
-        content   = tag_object.get('alt') if tag_object.string == None else tag_object.string.encode(encoding).decode(encoding)
-        url       = tag_object.get(attribute)
-        mime_type = None
-
-        if content is None or url is None or re.match('#|javascript:', url):
-            return None
-
-        url = url if url.startswith('data:image/') else utils.prepend_base_url(self.base_url, url)
-        if not ( url and ( mime_type := utils.is_image(url, self.session) ) ):
-            return None
-
-        return {
-            'score'  : 0,
-            'content': content,
-            'url'    : url,
-            'mime'   : mime_type,
-        }
+            if ( mime_type := utils.is_image(url, self.session) ) and (
+                (score := score_link(content)) >= min_score
+            ):
+                link = {
+                    'score'  : score,
+                    'url'    : url,
+                    'mime'   : mime_type,
+                }
+                if use_content:
+                    link['content'] =  content
+                return link
 
     def get_links(self, **kargs):
-        links       = []
-        score_links = kargs.get('score_with', self._builtin_score)
-        count       = kargs.get('count', inf)
-        sort        = kargs.get('sort', False)
+        links     = []
+        count     = kargs.pop('count', inf)
+        self.page = utils.http_x('GET', self.session, self.url).text
+        dom       = BeautifulSoup(self.page, 'html.parser')
 
-        self.page = utils.http_x(
-            'GET',
-            self.session,
-            self.url
-        )
-
-        dom = BeautifulSoup(self.page, 'html.parser')
-        for tag_attribute in [ [ 'img', 'src' ], [ 'a', 'href' ] ]:
+        i     = 0
+        done  = False
+        links = []
+        for tag_attribute in [
+            [ 'img', [ 'data-src', 'src', 'srcset' ] ],
+            """[ 'a', [ 'href' ] ],"""
+        ]:
             for tag_object in dom.find_all(tag_attribute[0]):
-                if link := self._get_link(tag_object, *tag_attribute): links.append(link)
+                link = self._get_link(
+                    tag_object,
+                    *tag_attribute,
+                    **kargs
+                )
+                print(link)
+                if not link: continue
+                if len( list( filter(lambda l: l == link, links) ) ) == 0:
+                    i += 1
+                    links.append(link)
+                    yield link
 
-        if len(links) == 0:
-            return None
-
-        if self.subject is not None:
-            links = score_links(links)
-
-        # NOTE: Get unique links *after* scoring!
-        links = Image._uniquefy_links(links)
-        if sort:
-            links.sort(key = lambda m: m['score'], reverse = True)
-
-        return links[0:count]
+                if i == count:
+                    done = True
+                    break
+            if done: break
 
     def download_from(self, link, **kargs):
-        return download_image(
-            link if not isinstance(link, dict) else link.get('url', ''),
-            session,
-            **kargs
-        )
+        if isinstance(link, dict):
+            link = link.get('url')
+        if not link:
+            raise requests.exceptions.InvalidURL
+        return utils.download_image(link, self.session, **kargs)
             
     def download(self, **kargs):
-        links = self.get_links(**kargs)
-        if not links: return
-
-        for link in links:
-            for percent in self.download_from(
+        for link in self.get_links(**kargs):
+            for percent in utils.download_image(
                 link['url'],
                 self.session,
                 mime_type = link['mime'],

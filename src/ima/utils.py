@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from pickle import HIGHEST_PROTOCOL
 import re
 import random
 import requests
@@ -8,10 +9,11 @@ import itertools
 import string
 import base64
 
-from os      import sep, makedirs
-from os.path import exists
-from bs4     import BeautifulSoup
-from bs4     import NavigableString
+from os          import sep, makedirs
+from os.path     import exists
+from bs4         import BeautifulSoup
+from bs4         import NavigableString
+from .exceptions import HTTPResponseError, FileExistsError
 
 ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
                         itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
@@ -1635,7 +1637,6 @@ def is_image(url, session):
     if url.startswith('http'):
         response = http_x('HEAD', session, url)
         if response and ( matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')) ):
-            #print(url)
             return matched.group(1)
     elif matched := re.match('data:image/([^,;]+)', url):
         return matched.group(1)
@@ -1688,7 +1689,8 @@ def get_post_data(page, action, submit_value):
             post_data['action'] = form['action']
             break
 
-    return post_data if len( post_data.keys() ) > 1 else None
+    if len( post_data.keys() ) > 1:
+        return post_data
 
 def match_hrefs(page, href_like):
     dom = BeautifulSoup(page, 'html.parser')
@@ -1719,7 +1721,7 @@ def http_x(method, session, link, **kargs):
 
     if response and response.status_code == requests.codes.ok:
         return response
-    raise Exception('HttpResponseError: HTTP Server Response Code: ', response.status_code)
+    raise HTTPResponseError
 
 def sanitize_filename(string, restricted=False):
     def replace_insane(char):
@@ -1743,16 +1745,16 @@ def sanitize_filename(string, restricted=False):
     return ''.join(map(replace_insane, string))
 
 def download_image(url, session, **kargs):
-    filename   = kargs.get('filename')
-    mime_type  = kargs.get('mime_type')
-    chunk_size = kargs.get('rate', 128)
-    overwrite  = kargs.get('overwrite', False)
-    path       = re.match('(.+[^' + sep + '])' + sep + '*$', kargs.get('path', '.')).group(1)
+    filename   = kargs.pop('filename')
+    mime_type  = kargs.pop('mime_type')
+    chunk_size = kargs.pop('rate', 128)
+    overwrite  = kargs.pop('overwrite', False)
+    path       = re.match('(.+[^' + sep + '])' + sep + '*$', kargs.pop('path', '.')).group(1)
 
     # Some small subutils
     def add_extension(filename, mime_type):
         if mime_type or not re.search(r'\.[^\.]*$', filename):
-                filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
+            filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
         return filename
     def random_string(length):
         letters = list(string.ascii_letters)
@@ -1762,7 +1764,7 @@ def download_image(url, session, **kargs):
     if url.startswith('http'):
         response = http_x('GET', session, url, stream = True)
         if response is None:
-            return -1
+            raise HTTPResponseError
 
         if not filename:
             matched  = re.search(r'filename="((?:[^"]+|\\")+)"', response.headers.get('content-disposition', ''))
@@ -1775,7 +1777,10 @@ def download_image(url, session, **kargs):
         current_size = 0
         file_size    = int(response.headers.get('content-length', 0))
         filename     = path + sep + filename
-        if overwrite is False and exists(filename): return -2
+
+        if overwrite is False and exists(filename):
+            raise FileExistsError
+
         fd = open(filename, 'wb')
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
@@ -1788,7 +1793,8 @@ def download_image(url, session, **kargs):
         if filename is None:
             filename = add_extension(random_string(10), mime_type)
         filename = path + sep + filename
-        if overwrite is False and exists(filename): return -2
+        if overwrite is False and exists(filename):
+            raise FileExistsError
 
         data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
         data          = url.partition(',')[2].encode('ascii')
