@@ -1709,7 +1709,7 @@ def match_hrefs(page, href_like):
                     added = True
                     break
             if added: continue
-            hrefs.append({ 'href': href, 'id': page_id })
+            hrefs.append({ 'href': href, 'id': int(page_id) })
 
     return hrefs if len(hrefs) > 0 else None
 

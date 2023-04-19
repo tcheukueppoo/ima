@@ -10,5 +10,5 @@ class FileExistsError(Exception):
 class UnsupportedEngine(Exception):
     """Search engine is unsupported"""
 
-class CannotGoBack(Exception)
+class CannotGoBack(Exception):
     """Cannot Go back, it isn't your fault"""

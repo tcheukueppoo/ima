@@ -106,8 +106,7 @@ class Search:
         for a in dom.find_all('a'):
             href = a.get('href')
 
-            if href is None:
-                continue
+            if href is None: continue
             if self.engine == 'yahoo':
                 if matched := re.match(HREF_REGEX[self.engine][0], href):
                     url = self._decode_url(matched.group(1))
@@ -154,15 +153,35 @@ class Search:
 
         hrefs.sort(key = lambda m: m['id'])
         if len(hrefs) == 2:
-            return href[ 1 if sense == 'next' else 0 ]['href']
+            return hrefs[ 1 if sense == 'next' else 0 ]['href']
 
+        #old          = self.href_id
+        request_data = None
+        #print(hrefs)
         for c in range(0, len(hrefs)):
-            if self.href_id and self.href_id >= hrefs[c]['id']:
-                continue
+            if not self.href_id:
+                self.href_id = hrefs[c]['id']
+                request_data = hrefs[c]['href']
+                break
 
-            print("id: ", self.href_id, "new id: ", hrefs[c]['id'])
-            self.href_id = hrefs[c]['id']
-            return hrefs[c]['href'] if sense == 'next' else hrefs[c - 2]['href']
+            if self.href_id < hrefs[c]['id']:
+                if sense == 'previous':
+                    self.href_id = hrefs[c - 2]['id']
+                    request_data = hrefs[c - 2]['href']
+                else:
+                    self.href_id = hrefs[c]['id']
+                    request_data = hrefs[c]['href']
+                break
+
+            if sense == 'previous' and self.href_id > hrefs[-1]['id']:
+                print("Go here")
+                self.href_id = hrefs[-1]['id']
+                request_data = hrefs[-1]['href']
+                break
+
+        #print("id: ", old, "new id: ", self.href_id)
+        #print("last: ", hrefs[-1])
+        return request_data
 
     def _load_page(self, request_data):
         # Simple link to follow
@@ -212,7 +231,7 @@ class Search:
         as_image = kargs.get('as_image', False)
 
         if self.index == 1 or self.index == 0:
-            raise OutOFBoundError
+            raise OutOfBoundError
         
         self._load_page(self._get_request_data('previous'))
         self.index -= 1
