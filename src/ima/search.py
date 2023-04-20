@@ -108,11 +108,12 @@ class Search:
 
             if href is None: continue
             if self.engine == 'yahoo':
-                if matched := re.match(HREF_REGEX[self.engine][0], href):
-                    url = self._decode_url(matched.group(1))
-                    if re.match(HREF_REGEX[self.engine][1], url):
-                        urls.add(url)
-                continue
+                matched = re.match(HREF_REGEX[self.engine][0], href)
+                if matched is None: continue
+
+                url = self._decode_url(matched.group(1))
+                if re.match(HREF_REGEX[self.engine][1], url):
+                    urls.add(url)
 
             added = False
             query = parse_url(href).query
@@ -120,24 +121,20 @@ class Search:
                 if matched := re.search(HREF_REGEX[self.engine][0], query):
                     param, url = matched.group().split('=')
                     url = self._decode_url(url)
-
-                    # Google: some urls given via url= parameter are images, ignore them!
                     if self.engine != 'google' or (
                         param != 'url' or not utils.is_image(url, client = self.session)
                     ):
                         added = True
                         urls.add(url)
 
-            # SIMPLE url
             if not ( added and  href.startswith('/') ):
                 if re.match(HREF_REGEX[self.engine][1], href):
                     urls.add(href)
-
         return urls
 
     def _get_request_data(self, sense):
         if self.engine == 'duckduckgo':
-            return utils.get_post_data(self.page, '/html/', sense.capitalize())
+            post_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
 
         href_regex = {
             'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
@@ -157,13 +154,13 @@ class Search:
 
         #old          = self.href_id
         request_data = None
-        #print(hrefs)
         for c in range(0, len(hrefs)):
             if not self.href_id:
                 self.href_id = hrefs[c]['id']
                 request_data = hrefs[c]['href']
                 break
 
+            #print("See: ", hrefs[c]['id'], ' and ', self.href_id)
             if self.href_id < hrefs[c]['id']:
                 if sense == 'previous':
                     self.href_id = hrefs[c - 2]['id']
@@ -173,10 +170,14 @@ class Search:
                     request_data = hrefs[c]['href']
                 break
 
-            if sense == 'previous' and self.href_id > hrefs[-1]['id']:
-                print("Go here")
-                self.href_id = hrefs[-1]['id']
-                request_data = hrefs[-1]['href']
+            if sense == 'previous' and (
+                self.href_id > hrefs[-1]['id'] or (
+                    self.href_id == hrefs[-1]['id'] and c == (len(hrefs) - 1)
+                )
+            ):
+                href         = hrefs[-2] if hrefs[-1]['id'] == self.href_id else hrefs[-1]
+                self.href_id = href['id']
+                request_data = href['href']
                 break
 
         #print("id: ", old, "new id: ", self.href_id)
