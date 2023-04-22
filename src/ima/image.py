@@ -12,10 +12,10 @@ encoding = utils.preferred_encoding()
 class Image:
 
     def __init__(self, **kargs):
-        self.url      = kargs.pop('url', '')
+        self.url      = kargs.get('url', '')
         self.base_url = utils.get_base_url(self.url)
         self.session  = requests.Session()
-        self.subject  = kargs.pop('subject')
+        self.subject  = kargs.get('subject')
 
         self.session.headers.update(utils.generate_headers())
 
@@ -35,9 +35,9 @@ class Image:
         return score
 
     def _get_link(self, tag_object, tag, attributes, **kargs):
-        score_link  = kargs.pop('score_with', self._builtin_score)
-        min_score   = kargs.pop('min_score', 1)
-        use_content = kargs.pop('use_content', True)
+        score_link  = kargs.get('score_with', self._builtin_score)
+        min_score   = kargs.get('min_score', 1)
+        use_content = kargs.get('use_content', True)
 
         content = tag_object.get('alt') if tag_object.string == None else tag_object.string.encode(encoding).decode(encoding)
         if use_content and content is None:
@@ -73,7 +73,7 @@ class Image:
 
     def get_links(self, **kargs):
         links     = []
-        count     = kargs.pop('count', inf)
+        count     = kargs.get('count', inf)
         self.page = utils.http_x('GET', self.session, self.url).text
         dom       = BeautifulSoup(self.page, 'html.parser')
 
@@ -90,7 +90,6 @@ class Image:
                     *tag_attribute,
                     **kargs
                 )
-                print(link)
                 if not link: continue
                 if len( list( filter(lambda l: l == link, links) ) ) == 0:
                     i += 1
@@ -111,10 +110,12 @@ class Image:
             
     def download(self, **kargs):
         for link in self.get_links(**kargs):
+            print("got a link: ", link)
             for percent in utils.download_image(
                 link['url'],
                 self.session,
                 mime_type = link['mime'],
                 **kargs
             ):
-                yield { 'url': link['url'], 'percent': percent }
+                see = { 'url': link['url'], 'percent': percent }
+                print(see)

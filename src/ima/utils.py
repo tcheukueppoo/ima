@@ -1745,15 +1745,15 @@ def sanitize_filename(string, restricted=False):
     return ''.join(map(replace_insane, string))
 
 def download_image(url, session, **kargs):
-    filename   = kargs.pop('filename')
-    mime_type  = kargs.pop('mime_type')
-    chunk_size = kargs.pop('rate', 128)
-    overwrite  = kargs.pop('overwrite', False)
-    path       = re.match('(.+[^' + sep + '])' + sep + '*$', kargs.pop('path', '.')).group(1)
+    filename   = kargs.get('filename')
+    mime_type  = kargs.get('mime_type')
+    chunk_size = kargs.get('rate', 128)
+    overwrite  = kargs.get('overwrite', False)
+    path       = kargs.get('path', '.').removesuffix(sep)
 
     # Some small subutils
     def add_extension(filename, mime_type):
-        if mime_type or not re.search(r'\.[^\.]*$', filename):
+        if not re.search(r'\.[^\.]*$', filename) and mime_type:
             filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
         return filename
     def random_string(length):

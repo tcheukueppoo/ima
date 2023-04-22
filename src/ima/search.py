@@ -88,16 +88,16 @@ class Search:
     def _extract_links(self):
         HREF_REGEX = {
             'google': [
-                r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*?google\.com)[^&]+',
-                r'https://(?!(?:(?:\w+\.)*?google\.com))',
+                r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*google\.com)[^&]+',
+                r'https://(?!(?:(?:\w+\.)*google\.com))',
             ],
             'yahoo': [
                 r'https://r\.search\.yahoo\.com/.+/RO=\d+/RU=([^/]+)',
-                r'https://(?!(?:(?:\w+\.)*?yahoo\.com|yahoo\.uservoice\.com))',
+                r'https://(?!(?:(?:\w+\.)*yahoo\.(?:uservoice\.)?|(?:(?P<n>cc\.)|www\.)bing(?(n)j)\.)com)',
             ],
             'duckduckgo': [
                 r'uddg=https?[^&]+',
-                r'https://(?!(?:(?:\w+\.)*?duckduckgo\.com))',
+                r'https://(?!(?:(?:\w+\.)*duckduckgo\.com))',
             ],
         }
 
@@ -107,18 +107,14 @@ class Search:
             href = a.get('href')
 
             if href is None: continue
-            if self.engine == 'yahoo':
-                matched = re.match(HREF_REGEX[self.engine][0], href)
-                if matched is None: continue
-
-                url = self._decode_url(matched.group(1))
-                if re.match(HREF_REGEX[self.engine][1], url):
-                    urls.add(url)
+            if self.engine == 'yahoo' and ( matched := re.match(HREF_REGEX[self.engine][0], href) ):
+                    url = self._decode_url(matched.group(1))
+                    if re.match(HREF_REGEX[self.engine][1], url):
+                        urls.add(url)
 
             added = False
             query = parse_url(href).query
-            if query is not None:
-                if matched := re.search(HREF_REGEX[self.engine][0], query):
+            if query is not None and ( matched := re.search(HREF_REGEX[self.engine][0], query) ):
                     param, url = matched.group().split('=')
                     url = self._decode_url(url)
                     if self.engine != 'google' or (
@@ -127,14 +123,16 @@ class Search:
                         added = True
                         urls.add(url)
 
-            if not ( added and  href.startswith('/') ):
-                if re.match(HREF_REGEX[self.engine][1], href):
-                    urls.add(href)
+            if not added and re.match(HREF_REGEX[self.engine][1], href):
+                urls.add(href)
+
         return urls
 
     def _get_request_data(self, sense):
         if self.engine == 'duckduckgo':
             post_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
+            print(post_data)
+            return post_data
 
         href_regex = {
             'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
@@ -145,7 +143,8 @@ class Search:
         if hrefs is None: return
 
         if len(hrefs) == 1:
-            if sense == 'back': raise CannotGoBack
+            if sense == 'back':
+                raise CannotGoBack
             return hrefs[0]['href']
 
         hrefs.sort(key = lambda m: m['id'])
