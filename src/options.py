@@ -64,7 +64,7 @@ def ParseOptions():
         type    = 'int',
         default = 2,
         metavar = 'NUM',
-        help    = 'Indicate result counts of results obtained from the `-s\' or `-i\' option or when neither '
+        help    = 'Print NUM results obtained from the `-s\' or `-i\' option or when neither '
                   'of these options were specified, i.e the number of images to download.'
     )
     parser.add_option(
@@ -79,9 +79,9 @@ def ParseOptions():
         dest    = 'image',
         default = '{l}',
         metavar = 'OUTPUT_FORMAT',
-        help    = 'Output image links instead of downloading them. You can use the following specifiers to format output '
-                  '`{s}\' represents the score of the given image, `{d}\' its description, and `{l}\' its url. '
-                  'e.g: we can for example format our output as such "image {l} has score {s}".'
+        help    = 'Output image links instead of downloading them. You can use the following specifiers to format '
+                  'output: `{s}\' represents the score of the given image, `{d}\' its description, and `{l}\' its '
+                  'url. e.g: we can for example format our output as such "image {l} has score {s}".'
     )
     parser.add_option(
         '-s', '--search-only',
@@ -92,12 +92,12 @@ def ParseOptions():
                   'with the `-l\' option.'
     )
     parser.add_option(
-        '-t', '--image-count',
+        '-m', '--image-count',
         dest    = 'image_count',
         type    = 'int',
         default = 5,
         metavar = 'NUM',
-        help    = 'Set NUM as maximum number of image links to be extracted on a website obtained search results.'
+        help    = 'Set NUM as maximum number of image links to be extracted on a website obtained from search results.'
     )
     parser.add_option(
         '-d', '--dest-dir',
@@ -118,7 +118,7 @@ def ParseOptions():
     )
     parser.add_option(
         '-r', '--retrys',
-        dest    = 'retry',
+        dest    = 'retrys',
         type    = 'int',
         default = 2,
         metavar = 'NUM',
@@ -143,5 +143,4 @@ def ParseOptions():
     )
 
     opts, args = parser.parse_args(sys.argv[1:])
-    return ( opts, args )
-
+    return opts, args
