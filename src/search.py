@@ -6,12 +6,25 @@ import requests
 from urllib3.util import parse_url
 from bs4          import BeautifulSoup
 from base64       import b64decode, b64encode
-from os           import curdir, getenv, makedirs, sep, stat, unlink, rename
 from stat         import S_ISREG
 
-from .           import utils
-from .image      import Image
-from .exceptions import OutOfBoundError, UnsupportedEngine
+from os import (
+    curdir,
+    getenv,
+    makedirs,
+    sep,
+    stat,
+    unlink,
+    rename
+)
+
+from .exceptions import (
+    OutOfBoundError,
+    UnsupportedEngine
+)
+
+from .      import utils
+from .image import Image
 
 class Search:
 

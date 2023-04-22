@@ -1,11 +1,12 @@
 import re
 import requests
 
-from bs4    import BeautifulSoup
-from math   import inf
-
 from requests.exceptions import InvalidURL
-from .      import utils
+
+from bs4  import BeautifulSoup
+from math import inf
+
+from . import utils
 
 encoding = utils.preferred_encoding()
 
