@@ -1788,9 +1788,10 @@ def download_image(url, session, **kargs):
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
             current_size += len(chunk)
-            yield ( ((current_size / file_size) * 100) if file_size != 0 else current_size )
+            yield { '%': ( ((current_size / file_size) * 100) if file_size != 0 else current_size ) }
         # MB/MiB, GB/GiB?
-        if current_size != file_size: yield 100
+        if current_size != file_size:
+            yield { '%': 100 }
 
     elif url.startswith('data:'):
         if filename is None:
@@ -1815,12 +1816,12 @@ def download_image(url, session, **kargs):
             fd.write(decoder(data))
         else:
             fd.write(data)
-        yield 100
+        yield { '%': 100 }
 
 def humanize_bytes(size):
     prefix = '-' if size < 0 else ''
     size   = abs(size)
-    def _str(unit):
+    def _in(unit):
         return prefix + str(round(size)) + unit
 
     if size < 1024:
@@ -1832,5 +1833,5 @@ def humanize_bytes(size):
     if size < 1024:
         return _in('GiB')
     size /= 1024
-    return _str('TiB')
+    return _in('TiB')
 

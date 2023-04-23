@@ -9,7 +9,6 @@ from .options import ParseOptions
 from .        import exceptions
 from .utils   import (
     humanize_bytes,
-    term_print,
 )
 
 ask = [
@@ -42,62 +41,65 @@ def main():
         trys, c = 0, 0
         while True:
             try:
-                while True:
-                    results = search.next(as_image = False if opts.search else True)
+                results = search.next(as_image = False if opts.search else True)
 
-                    if opts.search:
-                        for url in results:
-                            c += 1
-                            _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
-                            if opts.count == c: exit(0)
+                if opts.search:
+                    for url in results:
+                        c += 1
+                        _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
+                        if opts.count == c:
+                            exit(0)
+                hash = { 'd': 'content', 'l': 'url', 's': 'score' }
+                for image in results:
+                    if opts.verbose:
+                        _info('[Website] {0}'.format(image.base_url))
 
-                    for image in results:
-                        image_links = list()
+                    image_links = list()
+                    while True:
+                        try:
+                            cc = c
+                            image_links = []
 
-                        if opts.verbose:
-                            _info('[Website] {0}'.format(image.base_url))
-
-                        while True:
-                            try:
-                                cc = c
-                                image_links = []
-                                for link in image.get_links(count = opts.count):
-                                    cc += 1
-                                    image_links.append(link)
-                                    if cc == opts.count: break
-                                break
-                            except ConnectionError:
-                                _error('[WARN] Failed to connect, trying to reconnect')
-                                if trys == opts.trys: exit(1)
-                                trys += 1
-
+                            for link in image.get_links(count = opts.count):
+                                cc += 1
+                                image_links.append(link)
+                                if cc == opts.count: break
+                            i = 0
                             while True:
-                                i= 0
                                 filename = None
                                 try:
-                                    while opts.count != c and (im := range(i, len(image_links))):
+                                    im = i
+                                    while opts.count != c and im < len(image_links):
                                         if opts.image_link:
-                                            hash = { 'd': 'content', 'l': 'url', 's': 'score' }
-                                            _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: image_links[im][hash[m.group(1)]], opts.image_link))
-                                        c += 1
-                                        continue
-                                    for stat in image.download_from(image_links[im]):
-                                        if len(stat) = 1:
-                                            pass
-                                        # Header
-                                        filename = stat['filename']
-                                        _info(
-                                            '[Download] filename: ' +
-                                            stat['filename']        +
-                                            ', size: '              +
-                                            utils.humanize_bytes(stat['size'])
-                                        )
-                                        c += 1
-                                        i += 1
+                                            c += 1
+                                            def trans(m):
+                                                return image_links[im][hash[m.group(1)]]
+                                            _info(re.sub(r'(?<!\\)\{(l|s|d)\}', trans, opts.image_link))
+                                            continue
+
+                                        link = image_links[im]
+                                        url = link.pop('url')
+                                        for stat in image.download_from(
+                                            url,
+                                            path      = opts.dest_dir,
+                                            overwrite = opts.overwrite,
+                                            **link
+                                        ):
+                                            if len(stat.keys()) == 1:
+                                                pass
+                                            _str = '[Download] filename: {0}, size: {1}'
+                                            _info(_str.format(stat['filename'], utils.humanize_bytes(stat['size'])))
+                                        c  += 1
+                                        i  += 1
+                                        im += 1
+                                    break
                                 except ConnectionError:
                                     pass
-                            
-                exit(0)
+                        except ConnectionError:
+                            _error('[WARN] Failed to connect, trying to reconnect')
+                            if trys == opts.trys: exit(1)
+                            trys += 1
+                break
             except exceptions.OutOfBoundError:
                 exit(0)
             except ConnectionError:

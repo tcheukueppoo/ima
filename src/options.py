@@ -134,11 +134,11 @@ def ParseOptions():
         help    = 'A comma separated list of domains to ignore on search results.'
     )
     parser.add_option(
-        '-f', '--log-file',
-        dest    = 'log_file',
-        type    = 'string',
-        default = None,
-        metavar = 'LOG_FILE',
+        '-w', '--overwrite',
+        dest    = 'overwrite',
+        action  = 'store_false',
+        type    = 'int',
+        default = False,
         help    = 'Dump full command line and log output to LOG_FILE in the current directory.'
     )
 

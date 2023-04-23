@@ -101,21 +101,25 @@ class Image:
             if done: break
 
     def download_from(self, link, **kargs):
+        url = None
         if isinstance(link, dict):
-            link = link.get('url')
-        if not link:
+            url = link.pop('url', None)
+            idk = link.pop('content', None)
+            idk = link.pop('score', None)
+
+        if url is None:
             raise requests.exceptions.InvalidURL
-        return utils.download_image(link, self.session, **kargs)
+        return utils.download_image(url, self.session, **link, **kargs)
             
     def download(self, **kargs):
         count = kargs.pop('count', inf)
 
         for link in self.get_links(count):
             yield link # header
-            for percent in utils.download_image(
+            for stat in utils.download_image(
                 link['url'],
                 self.session,
                 mime_type = link['mime'],
                 **kargs
             ):
-                yield percent
+                yield stat
