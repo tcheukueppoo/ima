@@ -76,7 +76,7 @@ def ParseOptions():
     )
     parser.add_option(
         '-l', '--image-links',
-        dest    = 'image',
+        dest    = 'image_links',
         default = '{l}',
         metavar = 'OUTPUT_FORMAT',
         help    = 'Output image links instead of downloading them. You can use the following specifiers to format '

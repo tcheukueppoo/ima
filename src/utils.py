@@ -1781,6 +1781,9 @@ def download_image(url, session, **kargs):
         if overwrite is False and exists(filename):
             raise FileExistsError
 
+        # Return HEADER
+        yield { 'url': url, 'filename': filename, 'size': file_size }
+
         fd = open(filename, 'wb')
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)

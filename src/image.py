@@ -63,18 +63,16 @@ class Image:
             if ( mime_type := utils.is_image(url, self.session) ) and (
                 (score := score_link(content)) >= min_score
             ):
-                link = {
-                    'score'  : score,
-                    'url'    : url,
-                    'mime'   : mime_type,
+                return {
+                    'url'     : url,
+                    'content' : content if use_content else None
+                    'score'   : score,
+                    'mime'    : mime_type,
                 }
-                if use_content:
-                    link['content'] =  content
-                return link
 
-    def get_links(self, **kargs):
+    def get_links(self, count = None):
         links     = []
-        count     = kargs.get('count', inf)
+        count     = inf if count is None else count
         self.page = utils.http_x('GET', self.session, self.url).text
         dom       = BeautifulSoup(self.page, 'html.parser')
 
@@ -110,13 +108,14 @@ class Image:
         return utils.download_image(link, self.session, **kargs)
             
     def download(self, **kargs):
-        for link in self.get_links(**kargs):
-            print("got a link: ", link)
+        count = kargs.pop('count', inf)
+
+        for link in self.get_links(count):
+            yield link # header
             for percent in utils.download_image(
                 link['url'],
                 self.session,
                 mime_type = link['mime'],
                 **kargs
             ):
-                see = { 'url': link['url'], 'percent': percent }
-                print(see)
+                yield percent
