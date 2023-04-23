@@ -1816,3 +1816,21 @@ def download_image(url, session, **kargs):
         else:
             fd.write(data)
         yield 100
+
+def humanize_bytes(size):
+    prefix = '-' if size < 0 else ''
+    size   = abs(size)
+    def _str(unit):
+        return prefix + str(round(size)) + unit
+
+    if size < 1024:
+        return _in('B')
+    size /= 1024
+    if size < 1024:
+        return _in('MiB')
+    size /= 1024
+    if size < 1024:
+        return _in('GiB')
+    size /= 1024
+    return _str('TiB')
+

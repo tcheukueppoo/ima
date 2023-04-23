@@ -41,7 +41,7 @@ def main():
         trys, count = 0, 0
         while count < opts.count:
             try:
-                while count < opts.count:
+                while count < opts.count and not opts.search:
                     if len(result) < opts.result_count:
                         result += search.next(as_image = True if opts.image_link else False)
                         result = result[0:opts.result_count]
@@ -49,31 +49,28 @@ def main():
                     if opts.search is not None:
                         for url in result:
                             if count == opts.count: break
-                            if len(args) == 1:
-                                print(url, file = sys.stdout)
-                            else:
-                                print('{0},{1}'.format(query, url), file = sys.stdout)
+                            _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
                             count += 1
                         continue
 
                     for i in range(0, len(result)):
                         image = result.pop(i)
+
                         _info('[Website] {0}'.format(image.base_url))
                         if opts.image_link:
-                            hash = { 'd': 'content', 'l': 'url', 's': 'score' }
+                            hash  = { 'd': 'content', 'l': 'url', 's': 'score' }
                             links = image.get_links(count = opts.image_count)
+
                             for link in links:
-                                out = re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: link[hash[m.group(1)]], opts.image_link)
-                                print(out, file = sys.stdout)
+                                _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: link[hash[m.group(1)]], opts.image_link))
                                 count += 1
                         else:
                             try:
                                 for stat in image.download(count = opts.image_count):
-                                    if len(stat) == 1:
-
+                                    if len(stat) != 1: # Header
+                                        _info('[download] filename: ' + stat['filename'] + ', size: ' + utils.humanize_bytes(stat['size']))
                                         continue
-                                    # Head
-                                    _info('[download] filename: {0}, size: {1}'.format(stat['filename'], utils.humanize_bytes(stat['size'])))
+                                    
                             except ConnectionError:
                                 _error('connection error')
 
