@@ -105,10 +105,10 @@ def main():
                                         ):
                                             if len(stat.keys()) == 1:
                                                 read = stat.get('%')
-                                                if not (size > 0 or opts.progress):
-                                                    to_write = read if size > 0 else humanize_bytes(read)
-                                                    opts.rewrite_text(to_write, length)
-                                                    length = len(length)
+                                                if size == 0 or not opts.progress:
+                                                    to_write = read + '%' if size > 0 else humanize_bytes(read)
+                                                    rewrite_text(to_write, length)
+                                                    length = len(to_write)
                                                 else:
                                                     draw_bar(read, 30)
                                                 continue

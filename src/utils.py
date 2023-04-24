@@ -1848,3 +1848,6 @@ def draw_bar(p, ln = 20):
     fill = int((ln * p) / 100)
     print(c.goto_x(0) + ' ', end = '')
     print(str(fg.boldblue) + (fill * '─') + str(fg.gray) + ((ln - fill - 1) * '─') + str(fx.reset), flush = True, end = '')
+
+def rewrite_text(txt, length):
+    print((length * c.erase()) + txt, end = '')
