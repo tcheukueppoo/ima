@@ -59,8 +59,8 @@ def ParseOptions():
                   'duckduckgo, google, and yahoo. Engine defaults to "google".'
     )
     parser.add_option(
-        '-c', '--count',
-        dest    = 'count',
+        '-n',
+        dest    = 'n',
         type    = 'int',
         default = 2,
         metavar = 'NUM',
@@ -136,10 +136,10 @@ def ParseOptions():
     parser.add_option(
         '-w', '--overwrite',
         dest    = 'overwrite',
-        action  = 'store_false',
+        action  = 'store_true',
         type    = 'int',
         default = False,
-        help    = 'Dump full command line and log output to LOG_FILE in the current directory.'
+        help    = 'Overwrite existing files'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])

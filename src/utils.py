@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from pickle import HIGHEST_PROTOCOL
 import re
 import random
 import requests
@@ -8,16 +7,26 @@ import locale
 import itertools
 import string
 import base64
+import ansi.cursor as c
 
-from os          import sep, makedirs
-from os.path     import exists
-from bs4         import BeautifulSoup
-from bs4         import NavigableString
+from os         import sep, makedirs
+from os.path    import exists
+from bs4        import BeautifulSoup
+from bs4        import NavigableString
+from ansi.color import fg, bg, fx
+
 from .exceptions import HTTPResponseError, FileExistsError
 
-ACCENT_CHARS = dict(zip('ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
-                        itertools.chain('AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
-                                        'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y')))
+ACCENT_CHARS = dict(
+    zip(
+        'ÂÃÄÀÁÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖŐØŒÙÚÛÜŰÝÞßàáâãäåæçèéêëìíîïðñòóôõöőøœùúûüűýþÿ',
+        itertools.chain(
+            'AAAAAA', ['AE'], 'CEEEEIIIIDNOOOOOOO', ['OE'], 'UUUUUY', ['TH', 'ss'],
+            'aaaaaa', ['ae'], 'ceeeeiiiionooooooo', ['oe'], 'uuuuuy', ['th'], 'y'
+        )
+    )
+)
+
 BASE_URL     = r'(https?://[^/]+)'
 MIMETYPE_EXT = {
     'apng'   : 'apng',
@@ -1835,3 +1844,7 @@ def humanize_bytes(size):
     size /= 1024
     return _in('TiB')
 
+def draw_bar(p, ln = 20):
+    fill = int((ln * p) / 100)
+    print(c.goto_x(0) + ' ', end = '')
+    print(str(fg.boldblue) + (fill * '─') + str(fg.gray) + ((ln - fill - 1) * '─') + str(fx.reset), flush = True, end = '')

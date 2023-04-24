@@ -1,108 +1,149 @@
 import sys
 import random
 import re
+import ansi.cursor as c
 
-from math     import inf
+from math import inf
+
 from .image   import Image
 from .search  import Search
 from .options import ParseOptions
-from .        import exceptions
-from .utils   import (
-    humanize_bytes,
-)
+from .utils   import humanize_bytes, draw_bar, rewrite_text
+from .        import exceptions as e
 
-ask = [
+ask = (
     'HIGH RESOLUTION IMAGES OF {0}',
     'IMAGES OF {0}',
     'I WANT IMAGES OF {0}',
     'DOWNLOAD IMAGES OF {0}',
     'FREE DOWNLOAD IMAGES OF {0}',
-]
+)
 
 def main():
-    opts, args = ParseOptions()
-
     def _error(error):
         me = sys.argv[0]
         print(me + ': ' + error, file = sys.stderr)
 
-    def _info(info):
-        print(info, file = sys.stdout)
+    def _info(info, **kargs):
+        print(info, file = sys.stdout, **kargs)
 
-    search = Search(engine = opts.engine, save = False)
+    opts, args = ParseOptions()
     if len(args) == 0:
         _error("No query string, try `{0} --help' for more info")
         exit(1)
 
-    for query in args:
-        search.set_engine(ask[1].format(query))
+    hide_cursor()
+    search = Search(engine = opts.engine, save = False)
+
+    trys = 0
+    def _conn_handler():
+         _error('[Warn] Failed to connect, trying to reconnect')
+        if trys == opts.trys:
+            show_cursor()
+            exit(1)
+        trys += 1
+    def _interrupt_handler():
+        èerror('Interrupted')
+        show_cursor()
+        exit(1)
+
+   for query in args:
+        search.set_engine(random.choice(ask).format(query))
 
         results = []
-        trys, c = 0, 0
+        trys, n = 0, 0
         while True:
             try:
                 results = search.next(as_image = False if opts.search else True)
 
                 if opts.search:
                     for url in results:
-                        c += 1
+                        n += 1
                         _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
-                        if opts.count == c:
+                        if opts.n == n:
+                            print(c.show(), end = '')
                             exit(0)
-                hash = { 'd': 'content', 'l': 'url', 's': 'score' }
-                for image in results:
-                    if opts.verbose:
-                        _info('[Website] {0}'.format(image.base_url))
 
-                    image_links = list()
+                for image in results:
+                    _info('[Website] {0}'.format(image.base_url))
+
+                    image_links = set()
                     while True:
                         try:
-                            cc = c
-                            image_links = []
-
-                            for link in image.get_links(count = opts.count):
-                                cc += 1
-                                image_links.append(link)
-                                if cc == opts.count: break
+                            if len(image_links) < opts.image_count:
+                                for link in image.get_links(
+                                    opts.image_count,
+                                    min_score   = opts.score,
+                                    use_content = opts.check_image
+                                ):
+                                    if opts.verbose:
+                                        _info('[Found] {0}'.format(link))
+                                    image_links.add(link)
+                                    if len(image_links) == opts.image_count:
+                                        break
                             i = 0
                             while True:
-                                filename = None
+                                filename    = None
+                                image_links = list(image_links)
                                 try:
-                                    im = i
-                                    while opts.count != c and im < len(image_links):
+                                    if i != 0 and filename is not None:
+                                        _info('Retrying to download {0}'.format(filename))
+
+                                    while n != opts.n and i < len(image_links):
+
                                         if opts.image_link:
-                                            c += 1
-                                            def trans(m):
-                                                return image_links[im][hash[m.group(1)]]
-                                            _info(re.sub(r'(?<!\\)\{(l|s|d)\}', trans, opts.image_link))
+                                            hash = { 'd': 'content', 'l': 'url', 's': 'score' }
+                                            _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: image_links[i][hash[m.group(1)]], opts.image_link))
+                                            n += 1
                                             continue
 
-                                        link = image_links[im]
-                                        url = link.pop('url')
+                                        length, size = 0, 0
                                         for stat in image.download_from(
-                                            url,
+                                            image_links[i],
                                             path      = opts.dest_dir,
-                                            overwrite = opts.overwrite,
-                                            **link
+                                            overwrite = opts.overwrite
                                         ):
                                             if len(stat.keys()) == 1:
-                                                pass
-                                            _str = '[Download] filename: {0}, size: {1}'
-                                            _info(_str.format(stat['filename'], utils.humanize_bytes(stat['size'])))
-                                        c  += 1
-                                        i  += 1
-                                        im += 1
+                                                read = stat.get('%')
+                                                if not (size > 0 or opts.progress):
+                                                    to_write = read if size > 0 else humanize_bytes(read)
+                                                    opts.rewrite_text(to_write, length)
+                                                    length = len(length)
+                                                else:
+                                                    draw_bar(read, 30)
+                                                continue
+
+                                            filename = stat['filename']
+                                            size     = stat['size']
+                                            _str     = '[Download] filename: {0}, size: {1}'
+                                            _info(_str.format(filename, utils.humanize_bytes(size)), end = '')
+
+                                        n += 1
+                                        i += 1
                                     break
+                                except KeyboardInterrupt:
+                                    _interrupt_handler()
                                 except ConnectionError:
-                                    pass
+                                    _conn_handler()
+                                except e.HTTPResponseError:
+                                    _error('[Warn] Http error while downloading', filename)
+                                    if not opts.image_link:
+                                        image_links.pop(i)
+
                         except ConnectionError:
-                            _error('[WARN] Failed to connect, trying to reconnect')
-                            if trys == opts.trys: exit(1)
-                            trys += 1
+                            _conn_handler()
+                        except KeyboardInterrupt:
+                            _interrupt_handler()
+                        except e.HTTPResponseError:
+                            _error('[Warn] Http response error, skipping ...')
+
+                show_cursor()
                 break
-            except exceptions.OutOfBoundError:
-                exit(0)
+
             except ConnectionError:
-                _error('[WARN] Failed to connect, trying to reconnect') 
-                if trys == opts.trys: exit(1)
-                trys += 1
+                _conn_handler()
+            except KeyboardInterrupt:
+                _interrupt_handler()
+            except e.OutOfBoundError:
+                show_cursor()
+                exit(0)

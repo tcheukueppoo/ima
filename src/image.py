@@ -35,7 +35,7 @@ class Image:
                     score += 1
         return score
 
-    def _get_link(self, tag_object, tag, attributes, **kargs):
+    def _get_link(self, tag_object, attributes, **kargs):
         score_link  = kargs.get('score_with', self._builtin_score)
         min_score   = kargs.get('min_score', 1)
         use_content = kargs.get('use_content', True)
@@ -65,28 +65,28 @@ class Image:
             ):
                 return {
                     'url'     : url,
-                    'content' : content if use_content else None
+                    'content' : content if use_content else None,
                     'score'   : score,
                     'mime'    : mime_type,
                 }
 
-    def get_links(self, count = None):
+    def get_links(self, n = inf, **kargs):
         links     = []
-        count     = inf if count is None else count
+        n         = inf if n is None else n
         self.page = utils.http_x('GET', self.session, self.url).text
         dom       = BeautifulSoup(self.page, 'html.parser')
 
         i     = 0
         done  = False
         links = []
-        for tag_attribute in [
+        for tag_attributes in [
             [ 'img', [ 'data-src', 'src', 'srcset' ] ],
-            """[ 'a', [ 'href' ] ],"""
+            # [ 'a', [ 'href' ] ],
         ]:
-            for tag_object in dom.find_all(tag_attribute[0]):
+            for tag_object in dom.find_all(tag_attributes[0]):
                 link = self._get_link(
                     tag_object,
-                    *tag_attribute,
+                    tag_attributes[1],
                     **kargs
                 )
                 if not link: continue
@@ -95,27 +95,28 @@ class Image:
                     links.append(link)
                     yield link
 
-                if i == count:
+                if i == n:
                     done = True
                     break
             if done: break
 
     def download_from(self, link, **kargs):
         url = None
+
         if isinstance(link, dict):
-            url = link.pop('url', None)
-            idk = link.pop('content', None)
-            idk = link.pop('score', None)
+            url  = link.pop('url', None)
+            mime = link.pop('mime') if kargs.get('mime_type', None) else link.pop('mime')
+        elif isinstance(link, str):
+            url = link
 
         if url is None:
             raise requests.exceptions.InvalidURL
-        return utils.download_image(url, self.session, **link, **kargs)
+        return utils.download_image(url, self.session, mime_type = mime, **kargs) 
             
     def download(self, **kargs):
-        count = kargs.pop('count', inf)
+        n = kargs.pop('n', inf)
 
-        for link in self.get_links(count):
-            yield link # header
+        for link in self.get_links(n):
             for stat in utils.download_image(
                 link['url'],
                 self.session,
