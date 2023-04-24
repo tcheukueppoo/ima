@@ -20,7 +20,8 @@ from os import (
 
 from .exceptions import (
     OutOfBoundError,
-    UnsupportedEngine
+    UnsupportedEngine,
+    CannotGoBack
 )
 
 from .      import utils
@@ -44,6 +45,14 @@ class Search:
     @staticmethod
     def get_url(engine, query):
         return Search.search_urls[engine].format(query.replace(' ', '+'))
+
+    @staticmethod
+    def _b64decode_str(_str):
+        return b64decode(_str.encode(Search.encoding)).decode(Search.encoding)
+
+    @staticmethod
+    def _b46encode_str(_str):
+        return b64encode(_str.encode(Search.encoding)).decode(Search.encoding)
 
     def __init__(self, **kargs):
         self.engine = kargs.get('engine', 'google')
@@ -131,7 +140,7 @@ class Search:
                     param, url = matched.group().split('=')
                     url = self._decode_url(url)
                     if self.engine != 'google' or (
-                        param != 'url' or not utils.is_image(url, client = self.session)
+                        param != 'url' or not utils.is_image(url, self.session)
                     ):
                         added = True
                         urls.add(url)
@@ -254,12 +263,12 @@ class Search:
             self._save(links)
 
         if as_image:
-            return self.convert_links_to_image_objects(links)
+            return self._convert_links_to_image_objects(links)
         return list(links)
 
-    def get_nlinks(self, **kargs):
-        count = kargs.get('count', 1)
-        if count < 1: raise OutOfBoundError
+    def get_links(self, **kargs):
+        n = kargs.get('n', 1)
+        if n < 1: raise OutOfBoundError
 
         current_trys = 0
         links        = []
@@ -271,17 +280,17 @@ class Search:
         if start is True:
             self.index = 1
 
-        while len(links) < count or current_trys < trys:
+        while len(links) < n or current_trys < trys:
             new_links = self.next()
             if new_links is None:
                 current_trys += 1
                 continue
             links += new_links
-        links = links[0:count]
+        links = links[0:n]
         if save and len(links) > 0: self._save(links)
 
         if as_image is not None:
-            return self.convert_links_to_image_objects(links)
+            return self._convert_links_to_image_objects(links)
         return links
 
     def _save(self, links):
@@ -301,15 +310,13 @@ class Search:
 
             while record := fd.readline():
                 query, link, frequency = re.split(',', record)
-                query  = b64decode(query.encode(Search.encoding)).decode(Search.encoding)
-                link   = b64decode(link.encode(Search.encoding)).decode(Search.encoding)
+                query, link = Search._b64decode_str(query), Search._b64decode_str(link)
                 exists = False
 
                 i = 0
                 while i < len(links):
                     if link == links[i] and self.query == query:
                         frequency = str(int(frequency) + 1)
-
                         tmp_fd.write(re.match('(.+),', record).group(1) + ',' + frequency + "\n")
                         links.pop(i)
                         exists = True
@@ -318,8 +325,8 @@ class Search:
                     tmp_fd.write(record)
         finally:
             for link in links:
-                query = b64encode(self.query.encode(Search.encoding)).decode(Search.encoding)
-                tmp_fd.write(query + ',' + b64encode(link.encode(Search.encoding)).decode(Search.encoding) + ",1\n")
+                query, link = Search._b46encode_str(self.query), Search._b46encode_str(link)
+                tmp_fd.write('{0},{1},1\n'.format(query, link))
 
         if found_file:
             unlink(file)
@@ -333,16 +340,13 @@ class Search:
         matched = []
         with open(self.save_file, 'r') as fd:
             while record := fd.readline():
-                splited    = re.split(',', record)
-                splited[0] = b64decode(splited[0].encode(Search.encoding)).decode(Search.encoding)
-                splited[1] = b64decode(splited[1].encode(Search.encoding)).decode(Search.encoding)
-
-                if query and splited[0] != query:
-                    continue
-                if query_like and not re.match(query_like, splited[0]):
-                    continue
-                if frequency and frequency != splited[2]:
-                    continue
-
-                matched += splited[1]
+                splited = [ i for i in map(Search._b64decode_str, re.split(',', record)) ]
+                if (
+                     query and splited[0] == query
+                   ) or (
+                     query_like and re.match(query_like, splited[0])
+                   ) or (
+                     frequency and frequency != splited[2]
+                ):
+                    matched += splited[1]
         return matched

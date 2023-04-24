@@ -1724,9 +1724,12 @@ def match_hrefs(page, href_like):
 
 def http_x(method, session, link, **kargs):
     response = None
-    if   method == 'GET':  response = session.get(link, **kargs) 
-    elif method == 'HEAD': response = session.head(link, **kargs)
-    elif method == 'POST': response = session.post(link, **kargs)
+    if   method == 'GET':
+        response = session.get(link, **kargs) 
+    elif method == 'HEAD':
+        response = session.head(link, **kargs)
+    elif method == 'POST':
+        response = session.post(link, **kargs)
 
     if response and response.status_code == requests.codes.ok:
         return response
@@ -1753,14 +1756,32 @@ def sanitize_filename(string, restricted=False):
     string = re.sub(r'[0-9]+(?::[0-9]+)+', lambda m: m.group(0).replace(':', '_'), string)
     return ''.join(map(replace_insane, string))
 
+def humanize_bytes(size):
+    prefix = '-' if size < 0 else ''
+    size   = abs(size)
+    def _in(unit):
+        return prefix + str(round(size)) + unit
+
+    if size < 1024:
+        return _in('B')
+    size /= 1024
+    if size < 1024:
+        return _in('MiB')
+    size /= 1024
+    if size < 1024:
+        return _in('GiB')
+    size /= 1024
+    return _in('TiB')
+
 def download_image(url, session, **kargs):
     filename   = kargs.get('filename')
     mime_type  = kargs.get('mime_type')
     chunk_size = kargs.get('rate', 128)
     overwrite  = kargs.get('overwrite', False)
     path       = kargs.get('path', '.').removesuffix(sep)
+    auto_gen   = kargs.get('auto', True)
 
-    # Some small subutils
+    # Some small subroutines
     def add_extension(filename, mime_type):
         if not re.search(r'\.[^\.]*$', filename) and mime_type:
             filename += '.' + MIMETYPE_EXT.get(mime_type, 'unknown')
@@ -1772,35 +1793,33 @@ def download_image(url, session, **kargs):
     makedirs(path, exist_ok = True)
     if url.startswith('http'):
         response = http_x('GET', session, url, stream = True)
-        if response is None:
-            raise HTTPResponseError
 
         if not filename:
             matched  = re.search(r'filename="((?:[^"]+|\\")+)"', response.headers.get('content-disposition', ''))
             filename = matched.group(1) if matched else re.search(r'([^/]+)/?$', url).group(1)
+        filename = path + sep + sanitize_filename(add_extension(filename, mime_type))
 
-        filename = add_extension(filename, mime_type)
-        filename = sanitize_filename(filename)
+        if exists(filename) and auto_gen:
+            filename = path + sep + add_extension(random_string(10), mime_type)
+        elif exists(filename) and overwrite is False:
+            raise FileExistsError
+
+        file_size = int(response.headers.get('content-length', 0))
+
+        # Return HEADER
+        yield { 'url': url, 'filename': filename, 'size': humanize_bytes(file_size) }
 
         # Start streaming the file ...
         current_size = 0
-        file_size    = int(response.headers.get('content-length', 0))
-        filename     = path + sep + filename
-
-        if overwrite is False and exists(filename):
-            raise FileExistsError
-
-        # Return HEADER
-        yield { 'url': url, 'filename': filename, 'size': file_size }
-
-        fd = open(filename, 'wb')
+        fd           = open(filename, 'wb')
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
             current_size += len(chunk)
-            yield { '%': ( ((current_size / file_size) * 100) if file_size != 0 else current_size ) }
+            yield { '%': str( ((current_size / file_size) * 100) ) + '%' if file_size != 0 else humanize_bytes(current_size) }
+
         # MB/MiB, GB/GiB?
         if current_size != file_size:
-            yield { '%': 100 }
+            yield { '%': '100' }
 
     elif url.startswith('data:'):
         if filename is None:
@@ -1825,24 +1844,7 @@ def download_image(url, session, **kargs):
             fd.write(decoder(data))
         else:
             fd.write(data)
-        yield { '%': 100 }
-
-def humanize_bytes(size):
-    prefix = '-' if size < 0 else ''
-    size   = abs(size)
-    def _in(unit):
-        return prefix + str(round(size)) + unit
-
-    if size < 1024:
-        return _in('B')
-    size /= 1024
-    if size < 1024:
-        return _in('MiB')
-    size /= 1024
-    if size < 1024:
-        return _in('GiB')
-    size /= 1024
-    return _in('TiB')
+        yield { '%': '100' }
 
 def draw_bar(p, ln = 20):
     fill = int((ln * p) / 100)
@@ -1850,4 +1852,10 @@ def draw_bar(p, ln = 20):
     print(str(fg.boldblue) + (fill * '─') + str(fg.gray) + ((ln - fill - 1) * '─') + str(fx.reset), flush = True, end = '')
 
 def rewrite_text(txt, length):
-    print((length * c.erase()) + txt, end = '')
+    print((length * c.erase()) + txt, flush = True, end = '')
+
+def hide_cursor():
+    print(c.hide(), end = '')
+
+def show_cursor():
+    print(c.show(), end = '')

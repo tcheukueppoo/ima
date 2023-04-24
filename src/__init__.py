@@ -8,8 +8,14 @@ from math import inf
 from .image   import Image
 from .search  import Search
 from .options import ParseOptions
-from .utils   import humanize_bytes, draw_bar, rewrite_text
 from .        import exceptions as e
+
+from .utils import (
+    draw_bar,
+    rewrite_text,
+    hide_cursor,
+    show_cursor
+)
 
 ask = (
     'HIGH RESOLUTION IMAGES OF {0}',
@@ -21,8 +27,7 @@ ask = (
 
 def main():
     def _error(error):
-        me = sys.argv[0]
-        print(me + ': ' + error, file = sys.stderr)
+        print(sys.argv[0] + ': ' + error, file = sys.stderr)
 
     def _info(info, **kargs):
         print(info, file = sys.stdout, **kargs)
@@ -32,26 +37,28 @@ def main():
         _error("No query string, try `{0} --help' for more info")
         exit(1)
 
-    hide_cursor()
     search = Search(engine = opts.engine, save = False)
 
     trys = 0
     def _conn_handler():
-         _error('[Warn] Failed to connect, trying to reconnect')
-        if trys == opts.trys:
+        nonlocal trys
+        if opts.trys == trys:
             show_cursor()
             exit(1)
         trys += 1
+        _error('[Warn] Failed to connect, trying to reconnect')
+
     def _interrupt_handler():
-        èerror('Interrupted')
+        _error('^Interrupted')
         show_cursor()
         exit(1)
 
-   for query in args:
+    hide_cursor()
+    for query in args:
         search.set_engine(random.choice(ask).format(query))
 
         results = []
-        trys, n = 0, 0
+        n = 0
         while True:
             try:
                 results = search.next(as_image = False if opts.search else True)
@@ -61,13 +68,13 @@ def main():
                         n += 1
                         _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
                         if opts.n == n:
-                            print(c.show(), end = '')
+                            show_cursor()
                             exit(0)
 
                 for image in results:
                     _info('[Website] {0}'.format(image.base_url))
 
-                    image_links = set()
+                    image_links = []
                     while True:
                         try:
                             if len(image_links) < opts.image_count:
@@ -78,13 +85,13 @@ def main():
                                 ):
                                     if opts.verbose:
                                         _info('[Found] {0}'.format(link))
-                                    image_links.add(link)
+                                    if image_links.count(link) == 0:
+                                        image_links.append(link)
                                     if len(image_links) == opts.image_count:
                                         break
                             i = 0
                             while True:
-                                filename    = None
-                                image_links = list(image_links)
+                                filename = None
                                 try:
                                     if i != 0 and filename is not None:
                                         _info('Retrying to download {0}'.format(filename))
@@ -104,19 +111,19 @@ def main():
                                             overwrite = opts.overwrite
                                         ):
                                             if len(stat.keys()) == 1:
-                                                read = stat.get('%')
+                                                perc_read = stat['%']
                                                 if size == 0 or not opts.progress:
-                                                    to_write = read + '%' if size > 0 else humanize_bytes(read)
+                                                    to_write = perc_read if size > 0 else perc_read
                                                     rewrite_text(to_write, length)
                                                     length = len(to_write)
                                                 else:
-                                                    draw_bar(read, 30)
+                                                    draw_bar(perc_read, 30)
                                                 continue
 
                                             filename = stat['filename']
-                                            size     = stat['size']
+                                            size     = int(stat['size'])
                                             _str     = '[Download] filename: {0}, size: {1}'
-                                            _info(_str.format(filename, utils.humanize_bytes(size)), end = '')
+                                            _info(_str.format(filename, size), end = '')
 
                                         n += 1
                                         i += 1
@@ -126,7 +133,7 @@ def main():
                                 except ConnectionError:
                                     _conn_handler()
                                 except e.HTTPResponseError:
-                                    _error('[Warn] Http error while downloading', filename)
+                                    _error('[Warn] Http error while downloading {0}'.format(filename))
                                     if not opts.image_link:
                                         image_links.pop(i)
 
