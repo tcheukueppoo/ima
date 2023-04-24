@@ -11,6 +11,7 @@ from .options import ParseOptions
 from .        import exceptions as e
 
 from .utils import (
+    get_base_url,
     draw_bar,
     rewrite_text,
     hide_cursor,
@@ -54,6 +55,9 @@ def main():
         show_cursor()
         exit(1)
 
+    def _in_domains(url):
+        return len( list( filter(lambda d: url.endswith(d), re.split(',', opts.no_domains)) ) )
+
     hide_cursor()
     search = Search(engine = opts.engine, save = False)
     for query in args:
@@ -66,16 +70,18 @@ def main():
 
                 if opts.search:
                     for url in results:
-                        n += 1
+                        if _in_domains(get_base_url(url)): continue
                         _info(url if len(args) == 1 else '{0},{1}'.format(query, url))
+                        n += 1
                         if opts.n == n:
                             show_cursor()
                             exit(0)
                     continue
 
                 for image in results:
-                    _info('[Website] {0}'.format(image.base_url))
+                    if _in_domains(image.base_url): continue
 
+                    _info('[Website] {0}'.format(image.base_url))
                     image_links = []
                     while True:
                         try:

@@ -56,7 +56,7 @@ def ParseOptions():
         default = 'duckduckgo',
         metavar = 'ENGINE',
         help    = 'Specify what search engine to use, possible search engines are '
-                  'duckduckgo, google, and yahoo. Engine defaults to "google".'
+                  'duckduckgo, google, and yahoo. Engine defaults to "duckduckgo".'
     )
     parser.add_option(
         '-n',
@@ -64,8 +64,8 @@ def ParseOptions():
         type    = 'int',
         default = 2,
         metavar = 'NUM',
-        help    = 'Print NUM results obtained from the `-s\' or `-i\' option or when neither '
-                  'of these options were specified, i.e the number of images to download.'
+        help    = 'Print NUM results obtained from the `-s\' or `-i\' option or download NUM images '
+                  'when neither of these options were specified.'
     )
     parser.add_option(
         '-p', '--progress',
@@ -75,8 +75,8 @@ def ParseOptions():
         help    = 'Show download progress bar.'
     )
     parser.add_option(
-        '-l', '--image-links',
-        dest    = 'image_links',
+        '-l', '--image-link',
+        dest    = 'image_link',
         default = '{l}',
         metavar = 'OUTPUT_FORMAT',
         help    = 'Output image links instead of downloading them. You can use the following specifiers to format '
@@ -88,7 +88,7 @@ def ParseOptions():
         dest    = 'search',
         action  = 'store_true',
         default = False,
-        help    = 'Query search engine and output search result only. This option is in conflict '
+        help    = 'Query search engine and output search results only. This option is in conflict '
                   'with the `-l\' option.'
     )
     parser.add_option(
@@ -105,7 +105,7 @@ def ParseOptions():
         type    = 'string',
         default = '.',
         metavar = 'DEST_DIR',
-        help    = 'Specify the destination directory were downloaded files should be stored, '
+        help    = 'Specify the destination directory were downloaded files will be stored, '
                   'default to the current working directory of the executing program.'
     )
     parser.add_option(
@@ -122,8 +122,7 @@ def ParseOptions():
         type    = 'int',
         default = 2,
         metavar = 'NUM',
-        help    = 'Number of retrys if the first connection to any of the websites obtained '
-                  'from search results fails. A negative number implies infinity.'
+        help    = 'Number of retrys if any connection fails.'
     )
     parser.add_option(
         '-i', '--ignore-domain',
@@ -137,9 +136,15 @@ def ParseOptions():
         '-w', '--overwrite',
         dest    = 'overwrite',
         action  = 'store_true',
-        type    = 'int',
         default = False,
-        help    = 'Overwrite existing files'
+        help    = 'Overwrite existing files, This option is in conflict with the `-a\' option.'
+    )
+    parser.add_option(
+        '-a', '--auto',
+        dest    = 'auto',
+        action  = 'store_false',
+        default = True,
+        help    = 'Auto generate a new file name if a file name already exist in filesystem.'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])
