@@ -26,38 +26,39 @@ ask = (
 )
 
 def main():
+    me = sys.argv[0]
+
     def _error(error):
-        print(sys.argv[0] + ': ' + error, file = sys.stderr)
+        print('{0}: {1}'.format(me, error), file = sys.stderr)
 
     def _info(info, **kargs):
         print(info, file = sys.stdout, **kargs)
 
     opts, args = ParseOptions()
     if len(args) == 0:
-        _error("No query string, try `{0} --help' for more info")
+        _error("No query string(s), try `{0} -h' for more info.".format(me))
         exit(1)
 
-    search = Search(engine = opts.engine, save = False)
-
     trys = 0
-    def _conn_handler():
+    def _connection_handler():
         nonlocal trys
         if opts.trys == trys:
+            _error('Giving up.')
             show_cursor()
             exit(1)
         trys += 1
-        _error('[Warn] Failed to connect, trying to reconnect')
+        _error('[Warn] Failed to connect, trying to reconnect.')
 
     def _interrupt_handler():
-        _error('^Interrupted')
+        _error('^Interrupted.')
         show_cursor()
         exit(1)
 
     hide_cursor()
+    search = Search(engine = opts.engine, save = False)
     for query in args:
         search.set_engine(random.choice(ask).format(query))
 
-        results = []
         n = 0
         while True:
             try:
@@ -70,6 +71,7 @@ def main():
                         if opts.n == n:
                             show_cursor()
                             exit(0)
+                    continue
 
                 for image in results:
                     _info('[Website] {0}'.format(image.base_url))
@@ -104,41 +106,44 @@ def main():
                                             n += 1
                                             continue
 
+                                        # Fallback to default
                                         length, size = 0, 0
                                         for stat in image.download_from(
                                             image_links[i],
                                             path      = opts.dest_dir,
-                                            overwrite = opts.overwrite
+                                            overwrite = opts.overwrite,
+                                            auto      = opts.auto
                                         ):
                                             if len(stat.keys()) == 1:
-                                                perc_read = stat['%']
+                                                read = stat['%']
                                                 if size == 0 or not opts.progress:
-                                                    to_write = perc_read if size > 0 else perc_read
-                                                    rewrite_text(to_write, length)
-                                                    length = len(to_write)
+                                                    rewrite_text(read, length)
                                                 else:
-                                                    draw_bar(perc_read, 30)
+                                                    draw_bar(read.removesuffix('%'), 30)
+                                                    rewrite_text(read, length)
+                                                length = len(read)
                                                 continue
 
                                             filename = stat['filename']
                                             size     = int(stat['size'])
-                                            _str     = '[Download] filename: {0}, size: {1}'
-                                            _info(_str.format(filename, size), end = '')
+                                            _str     = '[Download] Filename: {0}, Size: {1}'
+                                            _info(_str.format(filename, size), end = '' if size == 0 else '\n')
 
                                         n += 1
                                         i += 1
                                     break
+
                                 except KeyboardInterrupt:
                                     _interrupt_handler()
                                 except ConnectionError:
-                                    _conn_handler()
+                                    _connection_handler()
                                 except e.HTTPResponseError:
                                     _error('[Warn] Http error while downloading {0}'.format(filename))
                                     if not opts.image_link:
                                         image_links.pop(i)
 
                         except ConnectionError:
-                            _conn_handler()
+                            _connection_handler()
                         except KeyboardInterrupt:
                             _interrupt_handler()
                         except e.HTTPResponseError:
@@ -148,7 +153,7 @@ def main():
                 break
 
             except ConnectionError:
-                _conn_handler()
+                _connection_handler()
             except KeyboardInterrupt:
                 _interrupt_handler()
             except e.OutOfBoundError:
