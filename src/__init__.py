@@ -3,7 +3,10 @@ import random
 import re
 import ansi.cursor as c
 
-from math import inf
+from math    import inf
+from os.path import basename
+
+from requests.exceptions import ConnectionError
 
 from .image   import Image
 from .search  import Search
@@ -15,7 +18,8 @@ from .utils import (
     draw_bar,
     rewrite_text,
     hide_cursor,
-    show_cursor
+    show_cursor,
+    go_down
 )
 
 ask = (
@@ -43,31 +47,32 @@ def main():
     trys = 0
     def _connection_handler():
         nonlocal trys
-        if opts.trys == trys:
-            _error('Giving up.')
+        if opts.retrys == trys:
+            _error('Failed to connect.')
             show_cursor()
             exit(1)
         trys += 1
         _error('[Warn] Failed to connect, trying to reconnect.')
 
     def _interrupt_handler():
-        _error('^Interrupted.')
+        _error('^Interrupted by user.')
         show_cursor()
         exit(1)
 
     def _in_domains(url):
+        if opts.no_domains is None:
+            return 0
         return len( list( filter(lambda d: url.endswith(d), re.split(',', opts.no_domains)) ) )
 
     hide_cursor()
     search = Search(engine = opts.engine, save = False)
     for query in args:
-        search.set_engine(random.choice(ask).format(query))
+        search.set_query(random.choice(ask).format(query))
 
         n = 0
         while True:
             try:
                 results = search.next(as_image = False if opts.search else True)
-
                 if opts.search:
                     for url in results:
                         if _in_domains(get_base_url(url)): continue
@@ -79,9 +84,12 @@ def main():
                     continue
 
                 for image in results:
-                    if _in_domains(image.base_url): continue
+                    if _in_domains(image.base_url):
+                        continue
 
                     _info('[Website] {0}'.format(image.base_url))
+
+                    image.subject(query)
                     image_links = []
                     while True:
                         try:
@@ -89,79 +97,85 @@ def main():
                                 for link in image.get_links(
                                     opts.image_count,
                                     min_score   = opts.score,
-                                    use_content = opts.check_image
+                                    use_content = False if opts.score == 0 else True
                                 ):
-                                    if opts.verbose:
-                                        _info('[Found] {0}'.format(link))
-                                    if image_links.count(link) == 0:
-                                        image_links.append(link)
                                     if len(image_links) == opts.image_count:
                                         break
-                            i = 0
-                            while True:
-                                filename = None
-                                try:
-                                    if i != 0 and filename is not None:
-                                        _info('Retrying to download {0}'.format(filename))
+                                    if opts.n == n:
+                                        show_cursor()
+                                        exit(1)
+                                    if image_links.count(link) != 0:
+                                        continue
+                                    if opts.verbose:
+                                        _info('[Found] {0}'.format(link))
 
-                                    while n != opts.n and i < len(image_links):
-
-                                        if opts.image_link:
-                                            hash = { 'd': 'content', 'l': 'url', 's': 'score' }
-                                            _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: image_links[i][hash[m.group(1)]], opts.image_link))
-                                            n += 1
-                                            continue
-
-                                        # Fallback to default
-                                        length, size = 0, 0
-                                        for stat in image.download_from(
-                                            image_links[i],
-                                            path      = opts.dest_dir,
-                                            overwrite = opts.overwrite,
-                                            auto      = opts.auto
-                                        ):
-                                            if len(stat.keys()) == 1:
-                                                read = stat['%']
-                                                if size == 0 or not opts.progress:
-                                                    rewrite_text(read, length)
-                                                else:
-                                                    draw_bar(read.removesuffix('%'), 30)
-                                                    rewrite_text(read, length)
-                                                length = len(read)
-                                                continue
-
-                                            filename = stat['filename']
-                                            size     = int(stat['size'])
-                                            _str     = '[Download] Filename: {0}, Size: {1}'
-                                            _info(_str.format(filename, size), end = '' if size == 0 else '\n')
-
+                                    if opts.image_link:
+                                        hash = { 'd': 'content', 'l': 'url', 's': 'score' }
+                                        _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: link[hash[m.group(1)]], opts.image_link))
+                                        image_links.append(link)
                                         n += 1
-                                        i += 1
-                                    break
+                                        continue
 
-                                except KeyboardInterrupt:
-                                    _interrupt_handler()
-                                except ConnectionError:
-                                    _connection_handler()
-                                except e.HTTPResponseError:
-                                    _error('[Warn] Http error while downloading {0}'.format(filename))
-                                    if not opts.image_link:
-                                        image_links.pop(i)
+                                    while True:
+                                        filename = None
+                                        try:
+                                            if filename is not None:
+                                                _info('\nRetrying to download {0}'.format(filename))
 
+                                            # Fallback to default
+                                            length, size = 0, ''
+                                            for stat in image.download_from(
+                                                link,
+                                                path      = opts.dest_dir,
+                                                overwrite = opts.overwrite,
+                                                auto      = opts.auto
+                                            ):
+                                                if len(stat.keys()) == 1:
+                                                    read = stat['%']
+                                                    if size.startswith('0') or opts.no_progress is False:
+                                                        rewrite_text(read, length)
+                                                        length = len(read)
+                                                    else:
+                                                        draw_bar(read.removesuffix('%'), 30)
+                                                        info(read, end = '')
+                                                    continue
+
+                                                filename = basename(stat['filename'])
+                                                size     = stat['size']
+
+                                                ln   = ' ' if size.startswith('0') or not opts.no_progress else '\n'
+                                                _str = '[Download] Filename: {0}, Size: {1}'
+                                                _info(_str.format(filename, size), end = ln)
+
+                                            go_down()
+                                            n += 1
+                                            image_links.append(link)
+                                            break
+                                        except KeyboardInterrupt:
+                                            _interrupt_handler()
+                                        except ConnectionError:
+                                            _connection_handler()
+                                            continue
+                                        except e.HTTPResponseError:
+                                            _error("[Warn] HTTP error while downloading file {0}".format(filename))
+                                            break
+                            break
                         except ConnectionError:
                             _connection_handler()
+                            continue
                         except KeyboardInterrupt:
                             _interrupt_handler()
                         except e.HTTPResponseError:
-                            _error('[Warn] Http response error, skipping ...')
-
-                show_cursor()
-                break
-
+                            _error('[Warn] Http error, skipping ...')
+                            break
             except ConnectionError:
                 _connection_handler()
+                continue
             except KeyboardInterrupt:
                 _interrupt_handler()
             except e.OutOfBoundError:
                 show_cursor()
                 exit(0)
+
+            show_cursor()
+            break

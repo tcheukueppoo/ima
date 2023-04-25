@@ -1760,16 +1760,15 @@ def humanize_bytes(size):
     prefix = '-' if size < 0 else ''
     size   = abs(size)
     def _in(unit):
-        return prefix + str(round(size)) + unit
+        return prefix + str(round(size, ndigits = 2)) + unit
 
-    if size < 1024:
-        return _in('B')
+    if size < 1024: return _in('B')
     size /= 1024
-    if size < 1024:
-        return _in('MiB')
+    if size < 1024: return _in('KiB')
     size /= 1024
-    if size < 1024:
-        return _in('GiB')
+    if size < 1024: return _in('MiB')
+    size /= 1024
+    if size < 1024: return _in('GiB')
     size /= 1024
     return _in('TiB')
 
@@ -1815,11 +1814,7 @@ def download_image(url, session, **kargs):
         for chunk in response.iter_content(chunk_size = chunk_size):
             fd.write(chunk)
             current_size += len(chunk)
-            yield { '%': str( ((current_size / file_size) * 100) ) + '%' if file_size != 0 else humanize_bytes(current_size) }
-
-        # MB/MiB, GB/GiB?
-        if current_size != file_size:
-            yield { '%': '100' }
+            yield { '%': str( round(((current_size / file_size) * 100), ndigits = 1) ) + '%' if file_size != 0 else humanize_bytes(current_size) }
 
     elif url.startswith('data:'):
         if filename is None:
@@ -1844,18 +1839,23 @@ def download_image(url, session, **kargs):
             fd.write(decoder(data))
         else:
             fd.write(data)
-        yield { '%': '100' }
+        yield { '%': str(len(data)) + 'B' }
 
 def draw_bar(p, ln = 20):
+    p    = int(float(p))
     fill = int((ln * p) / 100)
+
     print(c.goto_x(0) + ' ', end = '')
-    print(str(fg.boldblue) + (fill * '─') + str(fg.gray) + ((ln - fill - 1) * '─') + str(fx.reset), flush = True, end = '')
+    print(str(fg.boldblue) + (fill * '─') + str(fg.gray) + ((ln - fill - 1) * '─') + str(fx.reset) + ' ', flush = True, end = '')
 
 def rewrite_text(txt, length):
-    print((length * c.erase()) + txt, flush = True, end = '')
+    print((c.back() * length) + txt, flush = True, end = '')
 
 def hide_cursor():
     print(c.hide(), end = '')
 
 def show_cursor():
     print(c.show(), end = '')
+
+def go_down():
+    print(c.goto_x(0) + c.down(), end = '')

@@ -68,8 +68,8 @@ def ParseOptions():
                   'when neither of these options were specified.'
     )
     parser.add_option(
-        '-p', '--progress',
-        dest    = 'progress',
+        '-p', '--no-progress',
+        dest    = 'no_progress',
         action  = 'store_false',
         default = True,
         help    = 'Show download progress bar.'
@@ -77,7 +77,7 @@ def ParseOptions():
     parser.add_option(
         '-l', '--image-link',
         dest    = 'image_link',
-        default = '{l}',
+        default = None,
         metavar = 'OUTPUT_FORMAT',
         help    = 'Output image links instead of downloading them. You can use the following specifiers to format '
                   'output: `{s}\' represents the score of the given image, `{d}\' its description, and `{l}\' its '
@@ -95,7 +95,7 @@ def ParseOptions():
         '-m', '--image-count',
         dest    = 'image_count',
         type    = 'int',
-        default = 5,
+        default = 4,
         metavar = 'NUM',
         help    = 'Set NUM as maximum number of image links to be extracted on a website obtained from search results.'
     )
@@ -120,13 +120,13 @@ def ParseOptions():
         '-r', '--retrys',
         dest    = 'retrys',
         type    = 'int',
-        default = 2,
+        default = 0,
         metavar = 'NUM',
         help    = 'Number of retrys if any connection fails.'
     )
     parser.add_option(
         '-i', '--ignore-domain',
-        dest    = 'no_domain',
+        dest    = 'no_domains',
         type    = 'string',
         default = None,
         metavar = 'DOMAIN',

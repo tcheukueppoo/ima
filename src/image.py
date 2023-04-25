@@ -1,5 +1,6 @@
 import re
 import requests
+import random
 
 from requests.exceptions import InvalidURL
 
@@ -25,6 +26,9 @@ class Image:
         self.base_url = utils.get_base_url(url)
 
     def _builtin_score(self, content):
+        if content is None:
+            return 0
+
         score   = 0
         content = content.casefold()
 
@@ -37,24 +41,33 @@ class Image:
 
     def _get_link(self, tag_object, attributes, **kargs):
         score_link  = kargs.get('score_with', self._builtin_score)
-        min_score   = kargs.get('min_score', 1)
+        min_score   = kargs.get('min_score', 0)
         use_content = kargs.get('use_content', True)
 
         content = tag_object.get('alt') if tag_object.string == None else tag_object.string.encode(encoding).decode(encoding)
         if use_content and content is None:
             return
 
+        site_name = re.match(r'https?://(?:www\.)?([^.]+)', self.base_url).group(1)
         for attribute in attributes:
             url = tag_object.get(attribute)
-            if not url: continue
-
-            if attribute == 'srcset':
-                # Just get the first URL, NO OVERHEAD
-                if matched := re.search(r'\s*((?:https?:|/)?\S+(?<!,))\s*,?\s*(?:\d+(?:\.\d+)?(?:w|x))?', url):
-                    url = matched.groups(1)
-            elif re.match('#|javascript:', url):
+            if not url:
                 continue
 
+            if attribute == 'srcset':
+                # Just pick the first URL, NO OVERHEAD
+                matched = re.search(r'\s*((?:https?:|/)?\S+(?<!,))\s*,?\s*(?:\d+(?:\.\d+)?(?:w|x))?', url)
+                if matched:
+                    url = matched.groups(1)
+            else:
+                if re.match('#|javascript:', url):
+                    continue
+                logo_regex = '/(?:logo|' + site_name + ')(?:[-_][A-Za-z0-9]+)*\\.' + '(:?' + '|'.join(utils.MIMETYPE_EXT.values()) + ')'
+                if re.search(logo_regex, url):
+                    continue
+
+            if re.search(r'\.(?:gif|svg)$', url):
+                continue
             if url.startswith('/'):
                 url = utils.prepend_base_url(self.base_url, url)
             elif not ( url.startswith('data:image/') or url.startswith('http') ):
@@ -77,31 +90,31 @@ class Image:
         dom       = BeautifulSoup(self.page, 'html.parser')
 
         i     = 0
-        done  = False
         links = []
         for tag_attributes in [
             [ 'img', [ 'data-src', 'src', 'srcset' ] ],
-            # [ 'a', [ 'href' ] ],
+            '''[ 'a', [ 'href' ] ],'''
         ]:
-            for tag_object in dom.find_all(tag_attributes[0]):
+            if i == n: break
+
+            tag_objects = dom.find_all(tag_attributes[0])
+            while i != n and len(tag_objects) > 0:
+                j = random.choice( list(range(0, len(tag_objects))) )
+
                 link = self._get_link(
-                    tag_object,
+                    tag_objects[j],
                     tag_attributes[1],
                     **kargs
                 )
-                if not link: continue
-                if len( list( filter(lambda l: l == link, links) ) ) == 0:
+                if link and len( list(filter(lambda l: l == link, links)) ) == 0:
                     i += 1
                     links.append(link)
                     yield link
 
-                if i == n:
-                    done = True
-                    break
-            if done: break
+                tag_objects.pop(j)
 
     def download_from(self, link, **kargs):
-        url = None
+        url, mime = None, None
 
         if isinstance(link, dict):
             url  = link.pop('url', None)

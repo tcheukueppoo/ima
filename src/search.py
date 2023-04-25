@@ -153,7 +153,7 @@ class Search:
     def _get_request_data(self, sense):
         if self.engine == 'duckduckgo':
             post_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
-            print(post_data)
+            #print(post_data)
             return post_data
 
         href_regex = {
@@ -340,7 +340,8 @@ class Search:
         matched = []
         with open(self.save_file, 'r') as fd:
             while record := fd.readline():
-                splited = [ i for i in map(Search._b64decode_str, re.split(',', record)) ]
+                splited = list( map(Search._b64decode_str, re.split(',', record)) )
+
                 if (
                      query and splited[0] == query
                    ) or (
