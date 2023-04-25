@@ -1832,10 +1832,11 @@ def download_image(url, session, **kargs):
         data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
         data          = url.partition(',')[2].encode('ascii')
 
+        if missing_padding := (len(data) % 4):
+            data += b'=' * (4 - missing_padding)
+
         fd = open(filename, 'wb')
-        if len(data_encoding) > 0 and (decoder := codec_utils.get(data_encoding)):
-            if missing_padding := (len(data) % 4):
-                data += b'=' * (4 - missing_padding)
+        if data_encoding and (decoder := codec_utils.get(data_encoding)):
             fd.write(decoder(data))
         else:
             fd.write(data)
