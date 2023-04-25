@@ -65,6 +65,7 @@ class Search:
 
         self.session = requests.Session()
         self.session.headers.update(utils.generate_headers())
+        self.timeout = kargs.get('timeout', 10)
 
         self.page      = ''
         self.index     = kargs.get('index', 0)
@@ -128,33 +129,30 @@ class Search:
         for a in dom.find_all('a'):
             href = a.get('href')
 
-            if href is None: continue
-            if self.engine == 'yahoo' and ( matched := re.match(HREF_REGEX[self.engine][0], href) ):
+            if href is None or not re.match('https?://', href):
+                continue
+            if self.engine == 'yahoo':
+                matched = re.match(HREF_REGEX[self.engine][0], href)
+                if matched:
                     url = self._decode_url(matched.group(1))
                     if re.match(HREF_REGEX[self.engine][1], url):
                         urls.add(url)
+                continue
 
-            added = False
             query = parse_url(href).query
-            if query is not None and ( matched := re.search(HREF_REGEX[self.engine][0], query) ):
+            if query is not None:
+                matched = re.search(HREF_REGEX[self.engine][0], query) 
+                if matched:
                     param, url = matched.group().split('=')
                     url = self._decode_url(url)
-                    if self.engine != 'google' or (
-                        param != 'url' or not utils.is_image(url, self.session)
-                    ):
-                        added = True
-                        urls.add(url)
-
-            if not added and re.match(HREF_REGEX[self.engine][1], href):
+                    urls.add(url)
+            elif re.match(HREF_REGEX[self.engine][1], href):
                 urls.add(href)
-
         return urls
 
     def _get_request_data(self, sense):
         if self.engine == 'duckduckgo':
-            post_data = utils.get_post_data(self.page, '/html/', sense.capitalize())
-            #print(post_data)
-            return post_data
+            return utils.get_post_data(self.page, '/html/', sense.capitalize())
 
         href_regex = {
             'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
@@ -211,7 +209,8 @@ class Search:
             self.page = utils.http_x(
                 'GET',
                 self.session,
-                utils.prepend_base_url(self.base_url, request_data)
+                utils.prepend_base_url(self.base_url, request_data),
+                timeout = self.timeout
             ).text
 
         # HTTP POST, DuckDuckGO
@@ -220,7 +219,8 @@ class Search:
                 'POST',
                 self.session,
                 utils.prepend_base_url(self.base_url, request_data['action']),
-                data = request_data['payload']
+                data    = request_data['payload'],
+                timeout = self.timeout
             ).text
 
     def _convert_links_to_image_objects(self, links):
@@ -232,7 +232,7 @@ class Search:
         as_image = kargs.get('as_image', False)
 
         if self.index == 0:
-            self.page = utils.http_x('GET', self.session, self.url).text
+            self.page = utils.http_x('GET', self.session, self.url, timeout = self.timeout).text
         else:
             request_data = self._get_request_data('next')
             if request_data is None:

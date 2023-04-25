@@ -17,6 +17,7 @@ class Image:
         self.url      = kargs.get('url', '')
         self.base_url = utils.get_base_url(self.url)
         self.session  = requests.Session()
+        self.timeout  = kargs.get('timeout', 10)
         self.subject  = kargs.get('subject')
 
         self.session.headers.update(utils.generate_headers())
@@ -57,12 +58,13 @@ class Image:
             if attribute == 'srcset':
                 # Just pick the first URL, NO OVERHEAD
                 matched = re.search(r'\s*((?:https?:|/)?\S+(?<!,))\s*,?\s*(?:\d+(?:\.\d+)?(?:w|x))?', url)
-                if matched:
-                    url = matched.groups(1)
+                if not matched:
+                    continue
+                url = matched.group(1)
             else:
                 if re.match('#|javascript:', url):
                     continue
-                logo_regex = '/(?:logo|' + site_name + ')(?:[-_][A-Za-z0-9]+)*\\.' + '(:?' + '|'.join(utils.MIMETYPE_EXT.values()) + ')'
+                logo_regex = '/(?:logo|' + site_name + ')(?:[-_]?[A-Za-z0-9]+)*\\.' + '(:?' + '|'.join(utils.MIMETYPE_EXT.values()) + ')'
                 if re.search(logo_regex, url):
                     continue
 
@@ -73,7 +75,7 @@ class Image:
             elif not ( url.startswith('data:image/') or url.startswith('http') ):
                 continue
 
-            if ( mime_type := utils.is_image(url, self.session) ) and (
+            if ( mime_type := utils.is_image(url, self.session, timeout = self.timeout) ) and (
                 (score := score_link(content)) >= min_score
             ):
                 return {
@@ -86,7 +88,7 @@ class Image:
     def get_links(self, n = inf, **kargs):
         links     = []
         n         = inf if n is None else n
-        self.page = utils.http_x('GET', self.session, self.url).text
+        self.page = utils.http_x('GET', self.session, self.url, timeout = self.timeout).text
         dom       = BeautifulSoup(self.page, 'html.parser')
 
         i     = 0

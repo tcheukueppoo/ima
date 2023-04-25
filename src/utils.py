@@ -1642,14 +1642,13 @@ def generate_headers():
         'Connection'     : 'Keep-Alive',
     }
 
-def is_image(url, session):
+def is_image(url, session, **kargs):
     if url.startswith('http'):
-        response = http_x('HEAD', session, url)
+        response = http_x('HEAD', session, url, **kargs)
         if response and ( matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')) ):
             return matched.group(1)
     elif matched := re.match('data:image/([^,;]+)', url):
         return matched.group(1)
-
     return None
 
 def prepend_base_url(base_url, href):
@@ -1823,14 +1822,15 @@ def download_image(url, session, **kargs):
         if overwrite is False and exists(filename):
             raise FileExistsError
 
-        data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
-        data          = url.partition(',')[2].encode('ascii')
-        codec_utils   = {
+        codec_utils = {
             'base85': base64.b85decode,
             'base64': base64.b64decode,
             'base32': base64.b32decode,
             'base16': base64.b16decode,
         }
+
+        data_encoding = re.match('data:image/[^;,]+(?:;([^,]+))?,', url).group(1)
+        data          = url.partition(',')[2].encode('ascii')
 
         fd = open(filename, 'wb')
         if len(data_encoding) > 0 and (decoder := codec_utils.get(data_encoding)):
@@ -1839,7 +1839,10 @@ def download_image(url, session, **kargs):
             fd.write(decoder(data))
         else:
             fd.write(data)
-        yield { '%': str(len(data)) + 'B' }
+
+        size = humanize_bytes(len(data))
+        yield { 'filename': filename, 'size': size }
+        yield { '%': '100%' }
 
 def draw_bar(p, ln = 20):
     p    = int(float(p))
@@ -1857,5 +1860,15 @@ def hide_cursor():
 def show_cursor():
     print(c.show(), end = '')
 
-def go_down():
-    print(c.goto_x(0) + c.down(), end = '')
+def next_line():
+    print()
+
+def C(S, color = False):
+    MAP = {
+        'D': [ 'Download', fg.blue ],
+        'S': [ 'Website', fg.blue ],
+        'I': [ 'Info', fg.red ],
+        'W': [ 'Warn', fg.red ],
+        'E': [ 'Err', fg.red ],
+    }
+    return str(MAP[S][1]) + MAP[S][0] + str(fx.reset)

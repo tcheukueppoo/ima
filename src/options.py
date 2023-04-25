@@ -68,6 +68,14 @@ def ParseOptions():
                   'when neither of these options were specified.'
     )
     parser.add_option(
+        '-u', '--number-sites',
+        dest    = 'number_sites',
+        type    = 'int',
+        default = 10,
+        metavar = 'NUM',
+        help    = 'The number of websites to visit from the search results.'
+    )
+    parser.add_option(
         '-p', '--no-progress',
         dest    = 'no_progress',
         action  = 'store_false',
@@ -125,6 +133,14 @@ def ParseOptions():
         help    = 'Number of retrys if any connection fails.'
     )
     parser.add_option(
+        '-x', '--retrys-per-sites',
+        dest    = 'retrys_per_sites',
+        type    = 'int',
+        default = 0,
+        metavar = 'NUM',
+        help    = 'Number of retrys if any connection fails.'
+    )
+    parser.add_option(
         '-i', '--ignore-domain',
         dest    = 'no_domains',
         type    = 'string',
@@ -145,6 +161,20 @@ def ParseOptions():
         action  = 'store_false',
         default = True,
         help    = 'Auto generate a new file name if a file name already exist in filesystem.'
+    )
+    parser.add_option(
+        '--nocolor',
+        dest    = 'color',
+        action  = 'store_false',
+        default = True,
+        help    = 'Disable ANSI printing'
+    )
+    parser.add_option(
+        '-t', '--timeout',
+        dest    = 'timeout',
+        type    = 'int',
+        default = 10,
+        help    = 'Set connection timeout.'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])
