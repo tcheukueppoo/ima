@@ -24,7 +24,8 @@ from .utils   import (
     hide_cursor,
     show_cursor,
     next_line,
-    erase_up
+    erase_up,
+    MIMETYPE_EXT
 )
 
 ask = (
@@ -129,7 +130,9 @@ def main():
             ntrys       = 0
             image_links = []
             image       = Image(url = url, subject = query, timeout = opts.timeout)
-            _info('[{0}] {1}'.format(C('S', opts.color), image.base_url))
+
+            if not opts.image_link:
+                _info('[{0}] {1}'.format(C('S', opts.color), image.base_url))
 
             while True:
                 try:
@@ -153,12 +156,12 @@ def main():
                                         return link[key]
                                     if m.group(1) == 'e':
                                         return MIMETYPE_EXT[link['mime']]
-                                    if m.group(1) == '':
+                                    if m.group(1) == 'w':
                                         return image.url
                                     _error("[{0}]: unrecognized format specifier `{1}'".format(C('E', opts.color), m.group(1)))
                                     exit(1)
 
-                                _info(re.sub(r'(?<!\\)\{(l|s|d)\}', sub, opts.image_link))
+                                _info(re.sub(r'(?<!\\)\{(e|w|l|s|d)\}', sub, opts.image_link))
                                 image_links.append(link)
                                 n += 1
 

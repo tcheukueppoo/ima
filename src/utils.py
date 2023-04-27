@@ -1645,7 +1645,7 @@ def generate_headers():
 def is_image(url, session, **kargs):
     if url.startswith('http'):
         response = http_x('HEAD', session, url, **kargs)
-        if response and ( matched := re.match('image/([^ ]+)', response.headers.get('content-type', '')) ):
+        if response and ( matched := re.match('image/([^ ;]+)', response.headers.get('content-type', '')) ):
             return matched.group(1)
     elif matched := re.match('data:image/([^,;]+)', url):
         return matched.group(1)
