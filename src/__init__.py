@@ -147,7 +147,18 @@ def main():
 
                             if opts.image_link:
                                 hash = { 'd': 'content', 'l': 'url', 's': 'score' }
-                                _info(re.sub(r'(?<!\\)\{(l|s|d)\}', lambda m: link[hash[m.group(1)]], opts.image_link))
+
+                                def sub(m):
+                                    if key := hash.get(m.group(1)):
+                                        return link[key]
+                                    if m.group(1) == 'e':
+                                        return MIMETYPE_EXT[link['mime']]
+                                    if m.group(1) == '':
+                                        return image.url
+                                    _error("[{0}]: unrecognized format specifier `{1}'".format(C('E', opts.color), m.group(1)))
+                                    exit(1)
+
+                                _info(re.sub(r'(?<!\\)\{(l|s|d)\}', sub, opts.image_link))
                                 image_links.append(link)
                                 n += 1
 
