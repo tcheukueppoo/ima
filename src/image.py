@@ -64,7 +64,7 @@ class Image:
             else:
                 if re.match('#|javascript:', url):
                     continue
-                logo_regex = '/(?:logo|' + site_name + ')(?:[-_]?[A-Za-z0-9]+)*\\.' + '(:?' + '|'.join(utils.MIMETYPE_EXT.values()) + ')'
+                logo_regex = '/(?:[A-Za-z0-9]+[-_])*(?:logo|' + site_name + ')(?:[-_]?[A-Za-z0-9]+)*\\.' + '(:?' + '|'.join(utils.MIMETYPE_EXT.values()) + ')'
                 if re.search(logo_regex, url):
                     continue
 
@@ -120,7 +120,9 @@ class Image:
 
         if isinstance(link, dict):
             url  = link.pop('url', None)
-            mime = link.pop('mime') if kargs.get('mime_type', None) else link.pop('mime')
+            mime = kargs.get('mime_type', None)
+            if mime is None:
+                mime = link.pop('mime')
         elif isinstance(link, str):
             url = link
 

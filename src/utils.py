@@ -1795,6 +1795,8 @@ def download_image(url, session, **kargs):
         if not filename:
             matched  = re.search(r'filename="((?:[^"]+|\\")+)"', response.headers.get('content-disposition', ''))
             filename = matched.group(1) if matched else re.search(r'([^/]+)/?$', url).group(1)
+            if len(filename) > 50:
+                filename = random_string(10)
         filename = path + sep + sanitize_filename(add_extension(filename, mime_type))
 
         if exists(filename) and auto_gen:
@@ -1862,6 +1864,7 @@ def show_cursor():
     print(c.show(), end = '')
 
 def next_line():
+    #print(c.down(), c.goto_x(0), end = '')
     print()
 
 def C(S, color = False):
@@ -1872,4 +1875,12 @@ def C(S, color = False):
         'W': [ 'Warn', fg.red ],
         'E': [ 'Err', fg.red ],
     }
-    return str(MAP[S][1]) + MAP[S][0] + str(fx.reset)
+    if color:
+        return str(MAP[S][1]) + MAP[S][0] + str(fx.reset)
+    return MAP[S][0]
+
+def erase_up(line = 1):
+    print(c.down(), end = '', flush = True)
+    while line > 0:
+        print(c.up(), c.goto_x(0), c.erase_line(), c.goto_x(0), end = '', flush = True)
+        line -= 1

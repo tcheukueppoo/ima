@@ -62,7 +62,7 @@ def ParseOptions():
         '-n',
         dest    = 'n',
         type    = 'int',
-        default = 2,
+        default = 4,
         metavar = 'NUM',
         help    = 'Print NUM results obtained from the `-s\' or `-i\' option or download NUM images '
                   'when neither of these options were specified.'
@@ -76,11 +76,11 @@ def ParseOptions():
         help    = 'The number of websites to visit from the search results.'
     )
     parser.add_option(
-        '-p', '--no-progress',
+        '-p', '--no-progress-bar',
         dest    = 'no_progress',
         action  = 'store_false',
         default = True,
-        help    = 'Show download progress bar.'
+        help    = 'Disable download progress bar.'
     )
     parser.add_option(
         '-l', '--image-link',
@@ -103,9 +103,9 @@ def ParseOptions():
         '-m', '--image-count',
         dest    = 'image_count',
         type    = 'int',
-        default = 4,
+        default = 2,
         metavar = 'NUM',
-        help    = 'Set NUM as maximum number of image links to be extracted on a website obtained from search results.'
+        help    = 'Set NUM as maximum number of image links to be extracted from a website.'
     )
     parser.add_option(
         '-d', '--dest-dir',
@@ -130,7 +130,7 @@ def ParseOptions():
         type    = 'int',
         default = 0,
         metavar = 'NUM',
-        help    = 'Number of retrys if any connection fails.'
+        help    = 'Number of retrys before giving up if any connection fails.'
     )
     parser.add_option(
         '-x', '--retrys-per-sites',
@@ -138,10 +138,10 @@ def ParseOptions():
         type    = 'int',
         default = 0,
         metavar = 'NUM',
-        help    = 'Number of retrys if any connection fails.'
+        help    = 'Number of retrys per sites if any connection fails.'
     )
     parser.add_option(
-        '-i', '--ignore-domain',
+        '-i', '--ignore-domains',
         dest    = 'no_domains',
         type    = 'string',
         default = None,
@@ -156,18 +156,18 @@ def ParseOptions():
         help    = 'Overwrite existing files, This option is in conflict with the `-a\' option.'
     )
     parser.add_option(
-        '-a', '--auto',
+        '-a', '--auto-name',
         dest    = 'auto',
-        action  = 'store_false',
-        default = True,
+        action  = 'store_true',
+        default = False,
         help    = 'Auto generate a new file name if a file name already exist in filesystem.'
     )
     parser.add_option(
-        '--nocolor',
+        '-k', '--no-color',
         dest    = 'color',
         action  = 'store_false',
         default = True,
-        help    = 'Disable ANSI printing'
+        help    = 'Disable ANSI colors'
     )
     parser.add_option(
         '-t', '--timeout',
@@ -175,6 +175,13 @@ def ParseOptions():
         type    = 'int',
         default = 10,
         help    = 'Set connection timeout.'
+    )
+    parser.add_option(
+        '-q', '--more-lines',
+        dest    = 'more_lines',
+        action  = 'store_true',
+        default = False,
+        help    = 'Wipe out download progress after download has finished'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])
