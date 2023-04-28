@@ -47,10 +47,10 @@ def main():
     opts, args = ParseOptions()
 
     if len(args) == 0:
-        _error(me + ": No query string(s), try `{0} -h' for more info.")
+        _error("{0}: No query string(s), try `{0} -h' for more info.".format(me))
         exit(1)
     if opts.n < opts.image_count:
-        _error(me + ": argument passed to `-n' must be > that of `-m'")
+        _error("{0}: argument passed to `-n' must be > that of `-m'".format(me))
         exit(1)
 
     def _info(info, **kargs):

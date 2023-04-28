@@ -55,8 +55,9 @@ def ParseOptions():
         dest    = 'engine',
         default = 'duckduckgo',
         metavar = 'ENGINE',
-        help    = 'Specify what search engine to use, possible search engines are '
-                  'duckduckgo, google, and yahoo. Engine defaults to "duckduckgo".'
+        help    = 'Comma separated list of search engines to use, possible search engines are '
+                  'duckduckgo, google, and yahoo. Engine defaults to "duckduckgo". If more than '
+                  'one search engine is specified, cycle through when connection fails too much.'
     )
     parser.add_option(
         '-n',
