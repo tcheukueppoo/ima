@@ -31,12 +31,14 @@ BASE_URL     = r'(https?://[^/]+)'
 MIMETYPE_EXT = {
     'apng'   : 'apng',
     'jpeg'   : 'jpg',
+    'jpg'    : 'jpg',
     'svg+xml': 'svg',
     'webp'   : 'webp',
     'bmp'    : 'bmp',
     'png'    : 'png',
     'tiff'   : 'tif',
     'x-icon' : 'ico',
+    'gif'    : 'gif',
 }
 
 def preferred_encoding():

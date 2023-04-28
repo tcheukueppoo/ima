@@ -80,11 +80,14 @@ def main():
         return len( list( filter(lambda d: url.endswith(d), re.split(',', opts.no_domains)) ) )
 
     hide_cursor()
-    search = Search(engine = opts.engine, timeout = opts.timeout, save = False)
+    engine_index = 0
+    engines      = re.split(',', opts.engine)
+    search       = Search(engine = engines[0], timeout = opts.timeout, save = False)
     for query in args:
         search.set_query(random.choice(ask).format(query))
 
-        urls = set()
+        n_failed = 0
+        urls     = set()
         while True:
             try:
                 urls = set(urls)
@@ -100,12 +103,20 @@ def main():
                 _connection_handler()
             except e.HTTPResponseError:
                 _error('[{0}] Could not search, HTTP response error.'.format(C('W', opts.color)))
+                if len(engines) > 1 and n_failed == 5:
+                    n_failed = 0
+                    engine_index += 1
+                    if len(engines) == engine_index:
+                        engine_index = 0
+                    search.set_engine(engines[engine_index])
+
                 if opts.retrys == trys:
-                    #if len(urls) > 0:
-                    #    break
+                    if len(urls) > 0:
+                        break
                     show_cursor()
                     exit(1)
-                trys += 1
+                trys     += 1
+                n_failed += 1
             except KeyboardInterrupt:
                 _interrupt_handler()
             except e.OutOfBoundError:
@@ -155,7 +166,7 @@ def main():
                                     if key := hash.get(m.group(1)):
                                         return link[key]
                                     if m.group(1) == 'e':
-                                        return MIMETYPE_EXT[link['mime']]
+                                        return MIMETYPE_EXT[link['mime'].casefold()]
                                     if m.group(1) == 'w':
                                         return image.url
                                     _error("[{0}]: unrecognized format specifier `{1}'".format(C('E', opts.color), m.group(1)))
