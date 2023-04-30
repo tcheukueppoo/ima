@@ -1,6 +1,4 @@
-.. raw:: html
-
-    <video width="560" height="315" src="https://github.com/tcheukueppo/tcheukueppo/raw/main/static/demo.mp4" controls></video>
+<video width="560" height="315" src="https://github.com/tcheukueppo/tcheukueppo/raw/main/static/demo.mp4" controls></video>
 
 ===
 ima
