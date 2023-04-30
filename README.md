@@ -1,18 +1,17 @@
-<video width="560" height="315" src="https://github.com/tcheukueppo/tcheukueppo/raw/main/static/demo.mp4" controls></video>
+<video src = "https://github.com/tcheukueppo/tcheukueppo/raw/main/static/demo.mp4" controls></video>
 
-===
 ima
 ===
 
-
-    Query with search engines and download images
+Query with search engines and download images
 
 - Intro
 - Installation
+- Documentation
 - License
 - Author
 
-ima is an extremely command line utility which permits you to query search engines(e.g DuckDuckGo)
+ima is an extremely tiny command line utility which permits you to query search engines(e.g DuckDuckGo)
 and download images from web pages.
 
 ima might be a utility of choice for the following purpose:
@@ -22,6 +21,14 @@ ima might be a utility of choice for the following purpose:
   use multiple search engines to obtain better results.
 - Caching your search results to later on use them locally.
 
-```{python}
+# Installation
 
+```{python}
+pip install ima
 ```
+
+# Documentation
+
+# License
+
+# Authors
