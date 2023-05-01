@@ -89,8 +89,9 @@ def ParseOptions():
         default = None,
         metavar = 'OUTPUT_FORMAT',
         help    = 'Output image links instead of downloading them. You can use the following specifiers to format '
-                  'output: `{s}\' represents the score of the given image, `{d}\' its description, and `{l}\' its '
-                  'url. e.g: we can for example format our output as such "image {l} has score {s}".'
+                  'output: `{s}\' represents the score of the given image, `{d}\' its description, `{l}\' its '
+                  'url, `{e}\' its file extension and `{w}\' the url from which the image link was extracted '
+                  'e.g: we can for example format our output as such --> "image {l} has score {s}".'
     )
     parser.add_option(
         '-s', '--search-only',
@@ -126,20 +127,20 @@ def ParseOptions():
         help    = 'Define mininum score for images. This option should not be used with the `-s\' option.'
     )
     parser.add_option(
-        '-r', '--retrys',
-        dest    = 'retrys',
+        '-r', '--retries',
+        dest    = 'retries',
         type    = 'int',
         default = 0,
         metavar = 'NUM',
-        help    = 'Number of retrys before giving up if any connection fails.'
+        help    = 'Number of retries before giving up if any connection fails.'
     )
     parser.add_option(
-        '-x', '--retrys-per-sites',
-        dest    = 'retrys_per_sites',
+        '-x', '--retries-per-sites',
+        dest    = 'retries_per_sites',
         type    = 'int',
         default = 0,
         metavar = 'NUM',
-        help    = 'Number of retrys per sites if any connection fails.'
+        help    = 'Number of retries per sites if any connection fails.'
     )
     parser.add_option(
         '-i', '--ignore-domains',

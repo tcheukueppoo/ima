@@ -36,7 +36,7 @@ ask = (
     'PICTURES OF {0}'
     'FREE DOWNLOAD IMAGES OF {0}',
     'I WANT PICTURES OF {0}',
-    'HIGH PICTURES IMAGES OF {0}',
+    'HIGH RESOLUTION PICTURES OF {0}',
 )
 
 def main():
@@ -56,16 +56,16 @@ def main():
     def _info(info, **kargs):
         print(info, file = sys.stdout, **kargs)
 
-    trys = 0
+    tries = 0
     def _connection_handler(t = None, **kargs):
-        nonlocal trys
+        nonlocal tries
         if kargs.get('nl'): next_line()
         t = (', ' + t) if t else ' to connect'
-        if opts.retrys == trys:
+        if opts.retries == tries:
             _error('[{0}] Failed{1}.'.format(C('E', opts.color), t))
             show_cursor()
             exit(1)
-        trys += 1
+        tries += 1
         _error('[{0}] Failed{1}.'.format(C('W', opts.color), t))
 
     def _interrupt_handler(**kargs):
@@ -110,12 +110,12 @@ def main():
                         engine_index = 0
                     search.set_engine(engines[engine_index])
 
-                if opts.retrys == trys:
+                if opts.retries == tries:
                     if len(urls) > 0:
                         break
                     show_cursor()
                     exit(1)
-                trys     += 1
+                tries    += 1
                 n_failed += 1
             except KeyboardInterrupt:
                 _interrupt_handler()
@@ -138,7 +138,7 @@ def main():
                     exit(0)
                 continue
 
-            ntrys       = 0
+            ntries      = 0
             image_links = []
             image       = Image(url = url, subject = query, timeout = opts.timeout)
 
@@ -242,9 +242,9 @@ def main():
                 except ReadTimeout:
                     _connection_handler('Read timeout')
                 except ConnectionError:
-                    if ntrys == opts.retrys_per_sites:
+                    if ntries == opts.retries_per_sites:
                         break
-                    ntrys += 1
+                    ntries += 1
                     _connection_handler()
                 except KeyboardInterrupt:
                     _interrupt_handler()
