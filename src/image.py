@@ -13,6 +13,18 @@ encoding = utils.preferred_encoding()
 
 class Image:
 
+    @staticmethod
+    def builtin_score(subject, content):
+        if content is None or subject is None: return 0
+
+        score   = 0
+        content = content.casefold()
+        for token in re.split('\s+', subject):
+            token = token.casefold()
+            if content.find(token.casefold()) != -1:
+                score += 1
+        return score
+
     def __init__(self, **kargs):
         self.url      = kargs.get('url', '')
         self.base_url = utils.get_base_url(self.url)
@@ -26,22 +38,9 @@ class Image:
         self.url      = url
         self.base_url = utils.get_base_url(url)
 
-    def _builtin_score(self, content):
-        if content is None:
-            return 0
-
-        score   = 0
-        content = content.casefold()
-
-        if self.subject:
-            for token in re.split('\s+', self.subject):
-                token = token.casefold()
-                if content.find(token.casefold()) != -1:
-                    score += 1
-        return score
 
     def _get_link(self, tag_object, attributes, **kargs):
-        score_link  = kargs.get('score_with', self._builtin_score)
+        score_link  = kargs.get('score_with', Image.builtin_score)
         min_score   = kargs.get('min_score', 0)
         use_content = kargs.get('use_content', True)
 
@@ -76,7 +75,7 @@ class Image:
                 continue
 
             if ( mime_type := utils.is_image(url, self.session, timeout = self.timeout) ) and (
-                (score := score_link(content)) >= min_score
+                (score := score_link(self.subject, content)) >= min_score
             ):
                 return {
                     'url': url,

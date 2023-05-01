@@ -20,23 +20,23 @@ Set url from which image links are going to be extracted.
 
 #### Class Method
 
-1. **get_links**(self, n, \*kargs)
+1. **get_links**(self, n, \*\*kargs)
 
 Possible key-value arguments are:
 
 Navigate and return a generator of dictionaries describing the extracted image tags.
 
-- min_score: A positive integer, It sets the minimum score an Image should have.
+- **min_score**: A positive integer, it is the minimum score an Image should have.
 You can plug-in a custom function which computes the score of an image based on your
-own policy. Ima has a default static method in the Image class which for each token in
-self.subject checks if it is contained in the alt attribute of each image tag its found
-and return the number of tokens that were present.
+own policy. Ima has a default static method in the `Image` class, it does the following:
+for each token in self.subject it checks if it is contained in the alt attribute of each
+image tag its found and return the number of tokens that were present.
 
-- score_with: Custom function to determine the image's score. It is going to be invoked
-with two arguments, first argument is the self.subject and second is the content of the `alt`
-attribute of the `img` tag.
+- **score_with**: Custom function to determine the image's score. It is going to be
+invoked with two arguments, first argument is the self.subject and second is the
+content of the `alt` attribute of the `img` tag.
 
-- use_content: Tell Image object to ignore all `img` tags with no alt attributes.
+- **use_content**: Tell Image object to ignore all `img` tags with no alt attributes.
 
 Yielded dictionaries contain the following keys:
 
@@ -47,13 +47,21 @@ Yielded dictionaries contain the following keys:
 
 2. **download_from**(self, link, \*\*kargs)
 
+link can either be a url or a dict of the type of the one yield by `self.get_links(...)`.
 
+It has the following optional key-value arguments:
+
+- **filename**: Preferred name of the image to be download.
+- 
 
 3. **download**(self, \*\*kargs)
 
-Use this to iterate over images and download images.
+Use this to iterate over images and download them.
 
-It has the following key-value arguments
+It has the following optional key-value arguments:
 
-
-
+- rate: Download rate, set the number of bytes to retrieve per iteration.
+- overwrite: Set to `True` to overwrite files that already exist.
+- path: Path to the downloaded images
+- auto: Set to `True` to auto generate a new name if another file with the same as the file
+to be downloaded already exist in filesystem.
