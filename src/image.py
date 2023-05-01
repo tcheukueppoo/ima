@@ -79,10 +79,10 @@ class Image:
                 (score := score_link(content)) >= min_score
             ):
                 return {
-                    'url'     : url,
-                    'content' : content if use_content else None,
-                    'score'   : score,
-                    'mime'    : mime_type,
+                    'url': url,
+                    'content': content if use_content else None,
+                    'score': score,
+                    'mime': mime_type,
                 }
 
     def get_links(self, n = inf, **kargs):

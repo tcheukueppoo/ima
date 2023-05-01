@@ -29,16 +29,16 @@ ACCENT_CHARS = dict(
 
 BASE_URL     = r'(https?://[^/]+)'
 MIMETYPE_EXT = {
-    'apng'   : 'apng',
-    'jpeg'   : 'jpg',
-    'jpg'    : 'jpg',
+    'apng': 'apng',
+    'jpeg': 'jpg',
+    'jpg': 'jpg',
     'svg+xml': 'svg',
-    'webp'   : 'webp',
-    'bmp'    : 'bmp',
-    'png'    : 'png',
-    'tiff'   : 'tif',
-    'x-icon' : 'ico',
-    'gif'    : 'gif',
+    'webp': 'webp',
+    'bmp': 'bmp',
+    'png': 'png',
+    'tiff': 'tif',
+    'x-icon': 'ico',
+    'gif': 'gif',
 }
 
 def preferred_encoding():
@@ -1636,12 +1636,12 @@ def random_user_agent():
 
 def generate_headers():
     return {
-        'User-Agent'     : random_user_agent(),
-        'Accept-Charset' : 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
-        'Accept'         : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent': random_user_agent(),
+        'Accept-Charset': 'ISO-8859-1,utf-8;q=0.7,*;q=0.7',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Encoding': 'gzip, deflate',
         'Accept-Language': 'en-us,en;q=0.5',
-        'Connection'     : 'Keep-Alive',
+        'Connection': 'Keep-Alive',
     }
 
 def is_image(url, session, **kargs):

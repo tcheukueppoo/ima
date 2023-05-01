@@ -32,9 +32,9 @@ class Search:
     # Static Vars
     encoding    = utils.preferred_encoding()
     search_urls = {
-        'yahoo'     : 'https://search.yahoo.com/search/?p={0}',
+        'yahoo': 'https://search.yahoo.com/search/?p={0}',
         'duckduckgo': 'https://html.duckduckgo.com/html/?q={0}',
-        'google'    : 'https://www.google.com/search?q={0}',
+        'google': 'https://www.google.com/search?q={0}',
     }
 
     @staticmethod
@@ -156,7 +156,7 @@ class Search:
 
         href_regex = {
             'google': r'/search\?q=[^&]+&.*(?<=&)start=(\d+)&',
-            'yahoo' : r'https://search\.yahoo\.com/search;[^?]+\?p=[^&]+&.*(?<=&)b=(\d+)&',
+            'yahoo': r'https://search\.yahoo\.com/search;[^?]+\?p=[^&]+&.*(?<=&)b=(\d+)&',
         }
 
         hrefs = utils.match_hrefs(self.page, href_regex[self.engine])
@@ -266,28 +266,27 @@ class Search:
             return self._convert_links_to_image_objects(links)
         return list(links)
 
-    def get_links(self, **kargs):
-        n = kargs.get('n', 1)
+    def get_links(self, n = 5, **kargs):
         if n < 1: raise OutOfBoundError
 
-        current_trys = 0
         links        = []
         save         = kargs.get('save', self.save)
         start        = kargs.get('start', True)
-        trys         = kargs.get('trys', 2)
         as_image     = kargs.get('as_image', False)
 
         if start is True:
             self.index = 1
 
-        while len(links) < n or current_trys < trys:
-            new_links = self.next()
-            if new_links is None:
-                current_trys += 1
-                continue
-            links += new_links
+        while len(links) < n:
+            try:
+                new_links = self.next()
+                links += new_links
+            except OutOfBoundError:
+                break
+
         links = links[0:n]
-        if save and len(links) > 0: self._save(links)
+        if save and len(links) > 0:
+            self._save(links)
 
         if as_image is not None:
             return self._convert_links_to_image_objects(links)
@@ -338,16 +337,16 @@ class Search:
         frequency  = kargs.get('frequency')
 
         matched = []
-        with open(self.save_file, 'r') as fd:
-            while record := fd.readline():
-                splited = list( map(Search._b64decode_str, re.split(',', record)) )
+        fd = open(self.save_file, 'r')
+        while record := fd.readline():
+            splited = list( map(Search._b64decode_str, re.split(',', record)) )
 
-                if (
-                     query and splited[0] == query
-                   ) or (
-                     query_like and re.match(query_like, splited[0])
-                   ) or (
-                     frequency and frequency != splited[2]
-                ):
-                    matched += splited[1]
+            if (
+                 query and splited[0] == query
+               ) or (
+                 query_like and re.match(query_like, splited[0])
+               ) or (
+                 frequency and frequency == splited[2]
+            ):
+                matched += splited[1]
         return matched
