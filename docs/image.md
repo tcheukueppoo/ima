@@ -6,7 +6,7 @@
 
 Create a new Image object. key-value arguments are:
 
-- url: url from which image links are going to be extracted.
+- url: Url from which image links are going to be extracted.
 - subject: Set space separated list of token use for scoring an extracted images.
 - timeout: Connection Timeout, default value is 10 seconds.
 
@@ -24,27 +24,36 @@ Set url from which image links are going to be extracted.
 
 Possible key-value arguments are:
 
-- save: A boolean, set to `True` to cache search results.
+Navigate and return a generator of dictionaries describing the extracted image tags.
 
-- start: Tell search object to extract links as from the start of the page if `start`
-is True, otherwise just extract by continuing from the current page.
+- min_score: A positive integer, It sets the minimum score an Image should have.
+You can plug-in a custom function which computes the score of an image based on your
+own policy. Ima has a default static method in the Image class which for each token in
+self.subject checks if it is contained in the alt attribute of each image tag its found
+and return the number of tokens that were present.
 
-- as\_image: Set to True to return a generator of `Image` of objects.
+- score_with: Custom function to determine the image's score. It is going to be invoked
+with two arguments, first argument is the self.subject and second is the content of the `alt`
+attribute of the `img` tag.
 
-- score: for which their existence would
-be checked in the alt attribute of the image tag. This can be useful to obtain
-quality results.
+- use_content: Tell Image object to ignore all `img` tags with no alt attributes.
 
-Navigate and get `n` links as a list of urls if `as_image` is `False` otherwise return
-a list of image objects.
+Yielded dictionaries contain the following keys:
 
-2. **download_from**(self, as\_image = `Boolean`, save = `Boolean`)
+    1. url: Image url.
+    2. content: if exists, contains the content of the alt attribute else `None`.
+    3. score: The computed score, based on `content`.
+    4. mime: Mimetype of the image.
+
+2. **download_from**(self, link, \*\*kargs)
 
 
 
-3. **download**(self, as\_image = `Boolean`, save = `Boolean`)
+3. **download**(self, \*\*kargs)
 
-Navigate to the previous page and return the result as a list of urls if `as_image`
-is False otherwise, return a generator of `Image` objects.
+Use this to iterate over images and download images.
+
+It has the following key-value arguments
+
 
 
