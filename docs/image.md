@@ -6,8 +6,8 @@
 
 Create a new Image object. key-value arguments are:
 
-- url: Url from which image links are going to be extracted.
-- subject: Set space separated list of token use for scoring an extracted images.
+- url: Link to site from which image links are going to be extracted.
+- subject: Set space separated list of token use for scoring an extracted image.
 - timeout: Connection Timeout, default value is 10 seconds.
 
 ### Methods
@@ -22,39 +22,31 @@ Set url from which image links are going to be extracted.
 
 1. **get_links**(self, n, \*\*kargs)
 
+Navigate and return a generator of dictionaries describing the extracted `img` tags.
+
 Possible key-value arguments are:
 
-Navigate and return a generator of dictionaries describing the extracted image tags.
-
-- **min_score**: A positive integer, it is the minimum score an Image should have.
+- **min_score**: A positive integer, it is the minimum score an image should have.
 You can plug-in a custom function which computes the score of an image based on your
-own policy. Ima has a default static method in the `Image` class, it does the following:
-for each token in self.subject it checks if it is contained in the alt attribute of each
-image tag its found and return the number of tokens that were present.
+own policy. Ima has a default static method in the `Image` class, it computes and
+return the number of common tokens between the contents of the `alt` attribute and that
+of self.subject. The higher the returned value, the greater the number of changes
+that the image is actually what you want but this is however not always true.
 
-- **score_with**: Custom function to determine the image's score. It is going to be
-invoked with two arguments, first argument is the self.subject and second is the
-content of the `alt` attribute of the `img` tag.
+- **score_with**: Custom function for scoring an image. It is going to be invoked
+with two arguments, first argument is `self.subject` and second is the content of
+the `alt` attribute of the `img` tag in question.
 
-- **use_content**: Tell Image object to ignore all `img` tags with no alt attributes.
+- **use_content**: Tell Image object to ignore all `img` tags with no `alt` attribute.
 
 Yielded dictionaries contain the following keys:
 
     1. url: Image url.
-    2. content: if exists, contains the content of the alt attribute else `None`.
+    2. content: If exists, contains the content of the image's `alt` attribute otherwise it is `None`.
     3. score: The computed score, based on `content`.
     4. mime: Mimetype of the image.
 
-2. **download_from**(self, link, \*\*kargs)
-
-link can either be a url or a dict of the type of the one yield by `self.get_links(...)`.
-
-It has the following optional key-value arguments:
-
-- **filename**: Preferred name of the image to be download.
-- 
-
-3. **download**(self, \*\*kargs)
+2. **download**(self, \*\*kargs)
 
 Use this to iterate over images and download them.
 
@@ -65,3 +57,12 @@ It has the following optional key-value arguments:
 - path: Path to the downloaded images
 - auto: Set to `True` to auto generate a new name if another file with the same as the file
 to be downloaded already exist in filesystem.
+
+3. **download_from**(self, link, \*\*kargs)
+
+link can either be a url or a dict yielded by `self.get_links(...)`.
+
+It has the same key-value arguments as that of **download** with the following:
+
+- **filename**: Preferred name of the image to be download.
+
