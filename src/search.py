@@ -269,10 +269,10 @@ class Search:
     def get_links(self, n = 5, **kargs):
         if n < 1: raise OutOfBoundError
 
-        links        = []
-        save         = kargs.get('save', self.save)
-        start        = kargs.get('start', True)
-        as_image     = kargs.get('as_image', False)
+        links    = []
+        save     = kargs.get('save', self.save)
+        start    = kargs.get('start', True)
+        as_image = kargs.get('as_image', False)
 
         if start is True:
             self.index = 1

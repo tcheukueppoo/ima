@@ -30,17 +30,19 @@ Change query, this also changes the url used to make the HTTP request.
 
 ### Class Methods
 
-1. **next**(self, as\_image = `Boolean`, save = `Boolean`)
+1. **next**(self, as_image = `Boolean`, save = `Boolean`)
+
+Set `save` to `True` if you want to cache the results.
 
 Navigate to the next page and return the result as a list of urls if `as_image`
 is `False` otherwise, return a generator of `Image` objects.
-Set `save` to `True` if you want to cache the results
 
-2. **back**(self, as\_image = `Boolean`, save = `Boolean`)
+2. **back**(self, as_image = `Boolean`, save = `Boolean`)
+
+Set `save` to `True` if you want to cache the results.
 
 Navigate to the previous page and return the result as a list of urls if `as_image`
 is `False` otherwise, return a generator of `Image` objects.
-Set `save` to `True` if you want to cache the results.
 
 3. **get_links**(self, n, \*\*kwargs)
 
