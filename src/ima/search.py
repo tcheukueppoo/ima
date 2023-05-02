@@ -140,12 +140,12 @@ class Search:
                 continue
 
             query = parse_url(href).query
-            if query is not None:
+            if query:
                 matched = re.search(HREF_REGEX[self.engine][0], query) 
                 if matched:
-                    param, url = matched.group().split('=')
-                    url = self._decode_url(url)
-                    urls.add(url)
+                    url = self._decode_url(matched.group().split('=')[1])
+                    if not utils.is_image(url, self.session):
+                        urls.add(url)
             elif re.match(HREF_REGEX[self.engine][1], href):
                 urls.add(href)
         return urls
