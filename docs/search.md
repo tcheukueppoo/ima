@@ -20,31 +20,31 @@ directory.
 
 ### Setters
 
-1. **set_engine**(self, string)
+1. `set_engine(self, str)`
 
 Set a new engine, this changes url used to make the HTTP request.
 
-2. **set_query**(self, string)
+2. `set_query(self, str)`
 
 Change query, this also changes the url used to make the HTTP request.
 
 ### Class Methods
 
-1. **next**(self, as_image = `Boolean`, save = `Boolean`)
+1. `next(self, as_image = Bool, save = `Bool`)`
 
 Set `save` to `True` if you want to cache the results.
 
 Navigate to the next page and return the result as a list of urls if `as_image`
 is `False` otherwise, return a generator of `Image` objects.
 
-2. **back**(self, as_image = `Boolean`, save = `Boolean`)
+2. `back(self, as_image = `Bool`, save = `Bool`)`
 
 Set `save` to `True` if you want to cache the results.
 
 Navigate to the previous page and return the result as a list of urls if `as_image`
 is `False` otherwise, return a generator of `Image` objects.
 
-3. **get_links**(self, n, \*\*kwargs)
+3. `get_links(self, n, **kwargs)`
 
 #### key-value arguments:
 
@@ -56,7 +56,7 @@ is `True`, otherwise just extract by continuing from the current page.
 Navigate and get `n` links as a list of urls if `as_image` is `False` otherwise return
 a list of image objects.
 
-3. **query_saves**(self, \*\*kwargs)
+3. `query_saves(self, **kwargs)`
 
 #### Key-value arguments:
 
