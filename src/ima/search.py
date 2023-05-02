@@ -30,7 +30,8 @@ from .image import Image
 class Search:
 
     # Static Vars
-    encoding    = utils.preferred_encoding()
+    encoding = utils.preferred_encoding()
+
     search_urls = {
         'yahoo': 'https://search.yahoo.com/search/?p={0}',
         'duckduckgo': 'https://html.duckduckgo.com/html/?q={0}',
@@ -109,8 +110,8 @@ class Search:
         return re.sub(r'%([a-fA-F0-9]{2})', lambda m: bytearray.fromhex(m.group(1)).decode(Search.encoding), url)
 
     def _extract_links(self):
-        IMG_EXT    = '\.' + '|'.join(utils.MIMETYPE_EXT.keys()) + '$'
-        HREF_REGEX = {
+        img_ext    = '\.' + '|'.join(utils.MIMETYPE_EXT.keys()) + '$'
+        href_regex = {
             'google': [
                 r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*google\.com)[^&]+',
                 r'https://(?!(?:(?:\w+\.)*google\.com))',
@@ -133,22 +134,21 @@ class Search:
             if href is None or not re.match('https?://', href):
                 continue
             if self.engine == 'yahoo':
-                matched = re.match(HREF_REGEX[self.engine][0], href)
+                matched = re.match(Search.href_regex[self.engine][0], href)
                 if matched:
                     url = self._decode_url(matched.group(1))
-                    if re.match(HREF_REGEX[self.engine][1], url):
+                    if re.match(Search.href_regex[self.engine][1], url):
                         urls.add(url)
                 continue
 
-            query = parse_url(href).query
-            if query:
-                matched = re.search(HREF_REGEX[self.engine][0], query) 
+            if query := parse_url(href).query:
+                matched = re.search(Search.href_regex[self.engine][0], query) 
                 if matched:
                     url = self._decode_url(matched.group().split('=')[1])
-                    #if not utils.is_image(url, self.session):
-                    if not re.search(IMG_EXT, url):
+                    if not re.search(img_ext, url):
                         urls.add(url)
-            elif re.match(HREF_REGEX[self.engine][1], href):
+
+            elif re.match(Search.href_regex[self.engine][1], href):
                 urls.add(href)
         return urls
 
@@ -326,7 +326,8 @@ class Search:
                     tmp_fd.write(record)
         finally:
             for link in links:
-                query, link = Search._b46encode_str(self.query), Search._b46encode_str(link)
+                query = Search._b46encode_str(self.query)
+                link  = Search._b46encode_str(link)
                 tmp_fd.write('{0},{1},1\n'.format(query, link))
 
         if found_file:
