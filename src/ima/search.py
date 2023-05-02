@@ -109,6 +109,7 @@ class Search:
         return re.sub(r'%([a-fA-F0-9]{2})', lambda m: bytearray.fromhex(m.group(1)).decode(Search.encoding), url)
 
     def _extract_links(self):
+        IMG_EXT    = '\.' + '|'.join(utils.MIMETYPE_EXT.keys()) + '$'
         HREF_REGEX = {
             'google': [
                 r'imgrefurl=[^&]+|(?:q|url|u)=https?://(?!(?:\w+\.)*google\.com)[^&]+',
@@ -144,7 +145,8 @@ class Search:
                 matched = re.search(HREF_REGEX[self.engine][0], query) 
                 if matched:
                     url = self._decode_url(matched.group().split('=')[1])
-                    if not utils.is_image(url, self.session):
+                    #if not utils.is_image(url, self.session):
+                    if not re.search(IMG_EXT, url):
                         urls.add(url)
             elif re.match(HREF_REGEX[self.engine][1], href):
                 urls.add(href)

@@ -1,32 +1,30 @@
 import pytest
+
 from ima.search import Search
 
-class test_search:
-    def __init__(self):
-        self.s = Search()
+s = Search()
 
-    def test_next_back(self, engine, query):
-        self.s.set_engine(engine)
-        self.s.set_query(query)
+def next_back(s):
+    r1 = s.next()
+    r2 = s.next()
+    r3 = s.next()
+    b2 = s.back()
+    b1 = s.back()
 
-        r1 = self.s.next()
-        r2 = self.s.next()
-        r3 = self.s.next()
-        b2 = self.s.back()
-        b1 = self.s.back()
+    assert r1 == b1
+    assert r2 == b2
 
-        assert r1 == b1
-        assert r2 == b2
+    f2 = s.next()
+    assert f2 == r2
 
-        f2 = self.s.next()
-        f3 = self.s.next()
+    f3 = s.next()
+    assert r3 == f3
 
-        assert f2 == r2
-        assert f3 == r3
+def test_google():
+    s.set_engine('google')
+    s.set_query('What is wikipedia')
+    next_back(s)
 
-
-test_object = test_search()
-test_object.test_next_back('google', 'What is wikipedia')
 '''
 test_object.test_next_back('duckduckgo', 'What is wikipedia')
 test_object.test_next_back('yahoo', 'What is wikipedia')
