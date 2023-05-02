@@ -19,7 +19,7 @@ class Image:
 
         score   = 0
         content = content.casefold()
-        for token in re.split('\s+', subject):
+        for token in re.split(r'\s+', subject):
             token = token.casefold()
             if content.find(token.casefold()) != -1:
                 score += 1

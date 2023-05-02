@@ -1,14 +1,13 @@
 import pytest
-
 from ima.search import Search
 
-class test_search():
+class test_search:
     def __init__(self):
-        s = Search()
+        self.s = Search()
 
     def test_next_back(self, engine, query):
-        self.set_engine(engine)
-        self.set_query(query)
+        self.s.set_engine(engine)
+        self.s.set_query(query)
 
         r1 = self.s.next()
         r2 = self.s.next()
