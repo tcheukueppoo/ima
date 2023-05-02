@@ -1,8 +1,5 @@
 # ima.search
 
-IMA constitute of two primary classes that performs the biggest job, these
-classes are `Search` and `Image` in `ima.search` and `ima.image` respectively.
-
 ## Search(\*\*kwargs)
 
 Create a new search object.
