@@ -4,7 +4,7 @@
 
 Create a new `Image` object.
 
-### Key-value arguments are:
+**key-value arguments are:**
 
 - `url`: Link to the site from which image links are going to be extracted.
 - `subject`: Set space separated list of token use for scoring an extracted image.
@@ -52,7 +52,7 @@ Use this to iterate over images and download them.
 
 **key-value arguments:**
 
-- `rate`: Download rate, set the number of bytes to retrieve per iteration.
+- `rate`: Download rate, set the number of bytes to retrieve per iteration on the file to be downloaded.
 - `overwrite`: Set to `True` to overwrite files that already exist.
 - `path`: Path to the downloaded images
 - `auto`: Set to `True` to auto generate a new name if another file with the same as the file
@@ -60,8 +60,8 @@ to be downloaded already exist in filesystem.
 
 3. `download_from(self, link, **kwargs)`
 
-link can either be a url or a dict yielded by `self.get_links(...)`.
+`link` can either be a url or a dict yielded by `self.get_links(...)`.
 
-It has the same key-value arguments as that of **download** with the following:
+It has the same key-value arguments as that of `self.download` with the following:
 
 - `filename`: Preferred name of the image to be download.

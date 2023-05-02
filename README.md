@@ -31,6 +31,14 @@ pip install ima
 
 # Documentation
 
+Go to the [Website](url) for the documentation.
+
+You can also read the documentation from [here](./docs/introduction.md)
+
 # License
 
+ima is licensed under GPLv3
+
 # Authors
+
+Kueppo Tcheukam, <tcheukueppo at tutanota.com>
