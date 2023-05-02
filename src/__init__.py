@@ -1,7 +1,6 @@
 import sys
 import random
 import re
-import ansi.cursor as c
 
 from os.path import basename
 
