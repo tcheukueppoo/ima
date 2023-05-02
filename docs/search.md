@@ -7,7 +7,7 @@ classes are `Search` and `Image` in `ima.search` and `ima.image` respectively.
 
 Create a new search object.
 
-### Key value arguments:
+**key value arguments**:
 
 - `engine`: Possible search engines are `google`, `duckduckgo`, and `yahoo`.
 - `query`: Your search query
@@ -46,7 +46,7 @@ is `False` otherwise, return a generator of `Image` objects.
 
 3. `get_links(self, n, **kwargs)`
 
-#### key-value arguments:
+**Key-value arguments**:
 
 - `save`: A boolean, set to `True` to cache search results.
 - `start`: Tell search object to extract links as from the start of the page if `start`
@@ -56,9 +56,9 @@ is `True`, otherwise just extract by continuing from the current page.
 Navigate and get `n` links as a list of urls if `as_image` is `False` otherwise return
 a list of image objects.
 
-3. `query_saves(self, **kwargs)`
+4. `query_saves(self, **kwargs)`
 
-#### Key-value arguments:
+**Key-value arguments:**
 
 - `query`: select cached search results whose query is exactly the value set to `query`
 - `query_like`: select cached search results whose query matches the regular expression
