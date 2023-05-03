@@ -6,8 +6,8 @@ if __package__ is None and not hasattr(sys, 'frozen'):
     path = os.path.realpath(os.path.abspath(__file__))
     sys.path.insert(0, os.path.dirname(os.path.dirname(path)))
 
-#import ima
-import src as ima
+import ima
+#import src as ima
 
 if __name__ == '__main__':
     ima.main()

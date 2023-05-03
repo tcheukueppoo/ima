@@ -11,19 +11,28 @@ sub get_options {
    my %options;
 
    local $/;
-   open my $fh, '<', '../src/ima/options.py' or die $!;
+   open my $fh, '<', './src/ima/options.py' or die $!;
 
    $_ = <$fh>;
    {
       if ( m/\G
             .*?
             \s* parser\.add_option \s* \(
-            \s* (?: '(?<o>-\w)'\s*, )? \s* (?: '(?<o> --\w+(?: (?>-\w+)+ )? )'\s*, )?
-            \s* (?<args> (?: \s* \w+ \s* = \s* (?> (?: (?: '(?:[^']*|\\')?' | \d+ | False | True | None ) \s* )* ),? )* )
+            \s* (?: '(?<o>-\w)' \s*, )? \s* (?: '(?<o> --\w+(?: (?>-\w+)+ )? )' \s*, )?
+            \s* (?<args>
+                  (?:
+                     \s* \w+ \s* =
+                     (?:
+                        \s*
+                        (?: '(?: \\' | (?>[^'\\]*)  )*' | \d+ | False | True | None )
+                     )+ ,?
+                  )*
+                )
             \s* \) \s*
             /gsxo ) {
 
          my $option = join ' ', grep { defined } @{$-{o}};
+
          if ( my $args = $+{args} ) {
 
             if ( $args =~ m/ \s* metavar \s* = \s* '(?<v>.+?)' /x ) {
@@ -31,17 +40,15 @@ sub get_options {
             }
 
             my $description;
-            if ( $args =~ m/ \s* help \s* = (?: \s* '(?<d>[^']*|\\'?)' (?{ $description .= $+{d} }) )+ /sx ) {
+            if ( $args =~ m/ \s* help \s* = (?: \s* '(?<d> (?: \\' | (?>[^'\\]*) )* )' (?{ $description .= $+{d} }) )+ /x ) {
                $options{$option}{d} = $description;
             }
          }
-
          redo;
       }
 
    }
 
-   print("End\n");
    return %options;
 }
 
@@ -49,23 +56,24 @@ sub output_doc_options {
    my %options = @_;
 
    say '> Mandatory arguments to long options are mandatory for short options too.';
+
    foreach my $option ( keys %options ) {
-      printf '> **%s**\n', $option;
-      printf '>> %s\n', $options{$option};
+      printf '> **%s**', $option;
+      printf ' %s', $options{$option}{v} if defined $options{$option}{v};
+      printf "\n>> %s\n", $options{$option}{d};
    }
 }
 
 sub output_synopsis {
    my %options  = @_;
-   my $synopsis = join ' ', map '[ ' . ( $_ =~ s/ /|/r ) . ( $options{$_}{v} // '' =~ s/(.+)/**$1**/r ) . ']', keys %options;
+   my $synopsis = join ' ', map '[ ' . ( $_ =~ s/ / | /r ) . ( $options{$_}{v} // '' ) =~ s/(.+)/ **$1**/r . ' ]', keys %options;
 
    say "# SYNOPSIS";
    printf "> **ima** %s **QUERY** [..QUERY]\n\n", $synopsis;
-   say;
 }
 
 sub output_authors {
-   open my $fh, '<', '../AUTHORS.md' or die $!;
+   open my $fh, '<', './AUTHORS.md' or die $!;
 
    say "# AUTHORS";
    while ( <$fh> ) {
@@ -82,14 +90,13 @@ sub output_file {
    say "";
 }
 
-#output_file('./heading.md');
+#output_file('./utils/heading.md');
 
 my %options = get_options();
-say Dumper { %options };
-#output_synopsis( %options );
-#output_doc_options( %options );
+output_synopsis( %options );
+output_doc_options( %options );
 
-#output_file('./body.md');
-#output_authors();
-#output_file('./issues.md');
-#output_file('./license.md');
+output_file('./utils/body.md');
+output_authors();
+output_file('./utils/issues.md');
+output_file('./utils/license.md');
