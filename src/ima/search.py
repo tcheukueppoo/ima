@@ -134,21 +134,21 @@ class Search:
             if href is None or not re.match('https?://', href):
                 continue
             if self.engine == 'yahoo':
-                matched = re.match(Search.href_regex[self.engine][0], href)
+                matched = re.match(href_regex[self.engine][0], href)
                 if matched:
                     url = self._decode_url(matched.group(1))
-                    if re.match(Search.href_regex[self.engine][1], url):
+                    if re.match(href_regex[self.engine][1], url):
                         urls.add(url)
                 continue
 
             if query := parse_url(href).query:
-                matched = re.search(Search.href_regex[self.engine][0], query) 
+                matched = re.search(href_regex[self.engine][0], query) 
                 if matched:
                     url = self._decode_url(matched.group().split('=')[1])
                     if not re.search(img_ext, url):
                         urls.add(url)
 
-            elif re.match(Search.href_regex[self.engine][1], href):
+            elif re.match(href_regex[self.engine][1], href):
                 urls.add(href)
         return urls
 

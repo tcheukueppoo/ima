@@ -1,152 +1,67 @@
-    parser.add_option(
-        '--version',
-        action = 'version',
-        help   = 'Print program version and exit.'
-    )
-    parser.add_option(
-        '-h', '--help',
-        action = 'help',
-        help   = 'Print this help text and exit.'
-    )
-    parser.add_option(
-        '-v', '--verbose',
-        dest    = 'verbose',
-        action  = 'store_true',
-        default = False,
-        help    = 'Print status messages to the standard output.'
-    )
-    parser.add_option(
-        '-e', '--engine',
-        dest    = 'engine',
-        default = 'duckduckgo',
-        metavar = 'ENGINE',
-        help    = 'Comma separated list of search engines to use, possible search engines are '
-                  'duckduckgo, google, and yahoo. Engine defaults to "duckduckgo". If more than '
-                  'one search engine is specified, cycle through when connection fails too much.'
-    )
-    parser.add_option(
-        '-n',
-        dest    = 'n',
-        type    = 'int',
-        default = 4,
-        metavar = 'NUM',
-        help    = 'Print NUM results obtained from the `-s\' or `-i\' option or download NUM images '
-                  'when neither of these options were specified.'
-    )
-    parser.add_option(
-        '-u', '--number-sites',
-        dest    = 'number_sites',
-        type    = 'int',
-        default = 10,
-        metavar = 'NUM',
-        help    = 'The number of websites to visit from the search results.'
-    )
-    parser.add_option(
-        '-p', '--no-progress-bar',
-        dest    = 'no_progress',
-        action  = 'store_false',
-        default = True,
-        help    = 'Disable download progress bar.'
-    )
-    parser.add_option(
-        '-l', '--image-link',
-        dest    = 'image_link',
-        default = None,
-        metavar = 'OUTPUT_FORMAT',
-        help    = 'Output image links instead of downloading them. You can use the following specifiers to format '
-                  'output: `{s}\' represents the score of the given image, `{d}\' its description, `{l}\' its '
-                  'url, `{e}\' its file extension and `{w}\' the url from which the image link was extracted '
-                  'e.g: we can for example format our output as such --> "image {l} has score {s}".'
-    )
-    parser.add_option(
-        '-s', '--search-only',
-        dest    = 'search',
-        action  = 'store_true',
-        default = False,
-        help    = 'Query search engine and output search results only. This option is in conflict '
-                  'with the `-l\' option.'
-    )
-    parser.add_option(
-        '-m', '--image-count',
-        dest    = 'image_count',
-        type    = 'int',
-        default = 2,
-        metavar = 'NUM',
-        help    = 'Set NUM as maximum number of image links to be extracted from a website.'
-    )
-    parser.add_option(
-        '-d', '--dest-dir',
-        dest    = 'dest_dir',
-        type    = 'string',
-        default = '.',
-        metavar = 'DEST_DIR',
-        help    = 'Specify the destination directory were downloaded files will be stored, '
-                  'default to the current working directory of the executing program.'
-    )
-    parser.add_option(
-        '-o', '--min-score',
-        dest    = 'score',
-        type    = 'int',
-        default = 0,
-        metavar = 'SCORE',
-        help    = 'Define mininum score for images. This option should not be used with the `-s\' option.'
-    )
-    parser.add_option(
-        '-r', '--retries',
-        dest    = 'retries',
-        type    = 'int',
-        default = 0,
-        metavar = 'NUM',
-        help    = 'Number of retries before giving up if any connection fails.'
-    )
-    parser.add_option(
-        '-x', '--retries-per-sites',
-        dest    = 'retries_per_sites',
-        type    = 'int',
-        default = 0,
-        metavar = 'NUM',
-        help    = 'Number of retries per sites if any connection fails.'
-    )
-    parser.add_option(
-        '-i', '--ignore-domains',
-        dest    = 'no_domains',
-        type    = 'string',
-        default = None,
-        metavar = 'DOMAIN',
-        help    = 'A comma separated list of domains to ignore on search results.'
-    )
-    parser.add_option(
-        '-w', '--overwrite',
-        dest    = 'overwrite',
-        action  = 'store_true',
-        default = False,
-        help    = 'Overwrite existing files, This option is in conflict with the `-a\' option.'
-    )
-    parser.add_option(
-        '-a', '--auto-name',
-        dest    = 'auto',
-        action  = 'store_true',
-        default = False,
-        help    = 'Auto generate a new file name if a file name already exist in filesystem.'
-    )
-    parser.add_option(
-        '-k', '--no-color',
-        dest    = 'color',
-        action  = 'store_false',
-        default = True,
-        help    = 'Disable ANSI colors'
-    )
-    parser.add_option(
-        '-t', '--timeout',
-        dest    = 'timeout',
-        type    = 'int',
-        default = 10,
-        help    = 'Set connection timeout.'
-    )
-    parser.add_option(
-        '-q', '--more-lines',
-        dest    = 'more_lines',
-        action  = 'store_true',
-        default = False,
-        help    = 'Wipe out download progress after download has finished'
-    )
+.SH SYNOPSIS
+.RS
+.PP
+\f[B]ima\f[] [ \-o | \-\-min\-score \f[B]SCORE\f[] ] [ \-a |
+\-\-auto\-name ] [ \-w | \-\-overwrite ] [ \-k | \-\-no\-color ] [
+\-\-version ] [ \-l | \-\-image\-link \f[B]OUTPUT_FORMAT\f[] ] [ \-e |
+\-\-engine \f[B]ENGINE\f[] ] [ \-x | \-\-retries\-per\-sites
+\f[B]NUM\f[] ] [ \-s | \-\-search\-only ] [ \-q | \-\-more\-lines ] [
+\-u | \-\-number\-sites \f[B]NUM\f[] ] [ \-n \f[B]NUM\f[] ] [ \-p |
+\-\-no\-progress\-bar ] [ \-i | \-\-ignore\-domains \f[B]DOMAIN\f[] ] [
+\-v | \-\-verbose ] [ \-r | \-\-retries \f[B]NUM\f[] ] [ \-t |
+\-\-timeout ] [ \-d | \-\-dest\-dir \f[B]DEST_DIR\f[] ] [ \-h | \-\-help
+] [ \-m | \-\-image\-count \f[B]NUM\f[] ] \f[B]QUERY\f[] [..QUERY]
+.RE
+.RS
+.PP
+Mandatory arguments to long options are mandatory for short options too.
+\f[B]\-v \-\-verbose\f[] > Print status messages to the standard output.
+\f[B]\-n\f[] NUM > Print NUM results obtained from the
+\f[C]\-s\\\[aq]\ or\f[]\-i\[aq] option or download NUM images when
+neither of these options were specified.
+\f[B]\-p \-\-no\-progress\-bar\f[] > Disable download progress bar.
+\f[B]\-i \-\-ignore\-domains\f[] DOMAIN > A comma separated list of
+domains to ignore on search results.
+\f[B]\-m \-\-image\-count\f[] NUM > Set NUM as maximum number of image
+links to be extracted from a website.
+\f[B]\-h \-\-help\f[] > Print this help text and exit.
+\f[B]\-r \-\-retries\f[] NUM > Number of retries before giving up if any
+connection fails.
+\f[B]\-t \-\-timeout\f[] > Set connection timeout.
+\f[B]\-d \-\-dest\-dir\f[] DEST_DIR > Specify the destination directory
+were downloaded files will be stored, default to the current working
+directory of the executing program.
+\f[B]\-\-version\f[] > Print program version and exit.
+\f[B]\-l \-\-image\-link\f[] OUTPUT_FORMAT > Output image links instead
+of downloading them.
+You can use the following specifiers to format output:
+\f[C]{s}\\\[aq]\ represents\ the\ score\ of\ the\ given\ image,\f[]{d}\[aq]
+its description, \f[C]{l}\\\[aq]\ its\ url,\f[]{e}\[aq] its file
+extension and
+\f[C]{w}\\\[aq]\ the\ url\ from\ which\ the\ image\ link\ was\ extracted\ e.g:\ we\ can\ for\ example\ format\ our\ output\ as\ such\ \-\->\ "image\ {l}\ has\ score\ {s}".\ **\-a\ \-\-auto\-name**\ >\ Auto\ generate\ a\ new\ file\ name\ if\ a\ file\ name\ already\ exist\ in\ filesystem.\ **\-w\ \-\-overwrite**\ >\ Overwrite\ existing\ files,\ This\ option\ is\ in\ conflict\ with\ the\f[]\-a\[aq]
+option.
+\f[B]\-k \-\-no\-color\f[] > Disable ANSI colors \f[B]\-o
+\-\-min\-score\f[] SCORE > Define mininum score for images.
+This option should not be used with the
+\f[C]\-s\\\[aq]\ option.\ **\-u\ \-\-number\-sites**\ NUM\ >\ The\ number\ of\ websites\ to\ visit\ from\ the\ search\ results.\ **\-q\ \-\-more\-lines**\ >\ Wipe\ out\ download\ progress\ after\ download\ has\ finished\ **\-x\ \-\-retries\-per\-sites**\ NUM\ >\ Number\ of\ retries\ per\ sites\ if\ any\ connection\ fails.\ **\-e\ \-\-engine**\ ENGINE\ >\ Comma\ separated\ list\ of\ search\ engines\ to\ use,\ possible\ search\ engines\ are\ duckduckgo,\ google,\ and\ yahoo.\ Engine\ defaults\ to\ "duckduckgo".\ If\ more\ than\ one\ search\ engine\ is\ specified,\ cycle\ through\ when\ connection\ fails\ too\ much.\ **\-s\ \-\-search\-only**\ >\ Query\ search\ engine\ and\ output\ search\ results\ only.\ This\ option\ is\ in\ conflict\ with\ the\f[]\-l\[aq]
+option.
+.RE
+.SH AUTHORS
+.RS
+.PP
+tcheukueppo <tcheukueppo@tutanota.com>
+.RE
+.SH BUGS
+.PP
+Presumably.
+Report them or discuss them at:
+.RS
+.PP
+https://github.com/tcheukueppo/ima/issues
+.RE
+.SH COPYRIGHT
+.RS
+.PP
+License GPLv3+: GNU GPL version 3 or later
+<http://gnu.org/licenses/gpl.html>.
+.RE

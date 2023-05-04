@@ -41,7 +41,7 @@ sub get_options {
 
             my $description;
             if ( $args =~ m/ \s* help \s* = (?: \s* '(?<d> (?: \\' | (?>[^'\\]*) )* )' (?{ $description .= $+{d} }) )+ /x ) {
-               $options{$option}{d} = $description;
+               $options{$option}{d} = ( $description =~ s/`/\\`/gr );
             }
          }
          redo;
@@ -55,12 +55,12 @@ sub get_options {
 sub output_doc_options {
    my %options = @_;
 
-   say '> Mandatory arguments to long options are mandatory for short options too.';
+   printf "**Mandatory arguments to long options are mandatory for short options too.**\n\n";
 
    foreach my $option ( keys %options ) {
-      printf '> **%s**', $option;
+      printf "\n\n### %s", $option;
       printf ' %s', $options{$option}{v} if defined $options{$option}{v};
-      printf "\n>> %s\n", $options{$option}{d};
+      printf "\n\n%s\n", $options{$option}{d};
    }
 }
 
@@ -68,16 +68,16 @@ sub output_synopsis {
    my %options  = @_;
    my $synopsis = join ' ', map '[ ' . ( $_ =~ s/ / | /r ) . ( $options{$_}{v} // '' ) =~ s/(.+)/ **$1**/r . ' ]', keys %options;
 
-   say "# SYNOPSIS";
-   printf "> **ima** %s **QUERY** [..QUERY]\n\n", $synopsis;
+   printf "# SYNOPSIS\n\n";
+   printf "**ima** %s **QUERY** [..QUERY]\n\n", $synopsis;
 }
 
 sub output_authors {
    open my $fh, '<', './AUTHORS.md' or die $!;
 
-   say "# AUTHORS";
+   printf "# AUTHORS\n\n";
    while ( <$fh> ) {
-      printf "> %s\n", $1 if m/^\* (.+)$/;
+      printf "%s\n", $1 if m/^\* (.+)$/;
    }
    say "";
 }
@@ -90,7 +90,7 @@ sub output_file {
    say "";
 }
 
-#output_file('./utils/heading.md');
+output_file('./utils/heading.md');
 
 my %options = get_options();
 output_synopsis( %options );

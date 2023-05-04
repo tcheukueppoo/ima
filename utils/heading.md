@@ -1,3 +1,3 @@
 # NAME
 
-> **ima** - Image searcher and downloader
+## ima - Image searcher and downloader
