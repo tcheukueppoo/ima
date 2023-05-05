@@ -1,4 +1,4 @@
-## Examples
+## EXAMPLES
 
 1. In in this context, use `ima` to perform a simple search with google and dump out the results.
 
@@ -18,7 +18,7 @@ ima -n 5 -m 1 -a 'Richard stallman'
 ima -e duckduckgo -d ~/artists/sia -n 10 -m 2 -o 1 'artists sia'
 ```
 
-4. Search and pip download link list of pics of sexy girls to `xargs`.
+4. Search and pipe download link list of pics of sexy girls to `xargs`.
 
 ```{bash}
 ima -l '{l}' 'sexy girls' | xargs wget 

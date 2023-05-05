@@ -174,16 +174,17 @@ def ParseOptions():
     parser.add_option(
         '-t', '--timeout',
         dest    = 'timeout',
+        metavar = 'TIMEOUT',
         type    = 'int',
         default = 10,
         help    = 'Set connection timeout.'
     )
     parser.add_option(
-        '-q', '--more-lines',
+        '-q', '--less-lines',
         dest    = 'more_lines',
         action  = 'store_true',
         default = False,
-        help    = 'Wipe out download progress after download has finished'
+        help    = 'Wipe download progress bar after download has finished'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])

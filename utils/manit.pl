@@ -58,7 +58,7 @@ sub output_doc_options {
    printf "**Mandatory arguments to long options are mandatory for short options too.**\n\n";
 
    foreach my $option ( keys %options ) {
-      printf "\n\n### %s", $option;
+      printf "\n\n### %s", ($option =~ s/ /, /r);
       printf ' %s', $options{$option}{v} if defined $options{$option}{v};
       printf "\n\n%s\n", $options{$option}{d};
    }
@@ -66,7 +66,7 @@ sub output_doc_options {
 
 sub output_synopsis {
    my %options  = @_;
-   my $synopsis = join ' ', map '[ ' . ( $_ =~ s/ / | /r ) . ( $options{$_}{v} // '' ) =~ s/(.+)/ **$1**/r . ' ]', keys %options;
+   my $synopsis = join ' ', map '[' . ( $_ =~ s/ /|/r ) . ( ( $options{$_}{v} // '' ) =~ s/(.+)/ **$1**/r ) . ']', keys %options;
 
    printf "## SYNOPSIS\n\n";
    printf "**ima** %s **QUERY** [..QUERY]\n\n", $synopsis;
