@@ -53,10 +53,10 @@ def ParseOptions():
     parser.add_option(
         '-e', '--engine',
         dest    = 'engine',
-        default = 'duckduckgo',
+        default = 'google',
         metavar = 'ENGINE',
         help    = 'Comma separated list of search engines to use, possible search engines are '
-                  'duckduckgo, google, and yahoo. Engine defaults to "duckduckgo". If more than '
+                  'duckduckgo, google, and yahoo. Engine defaults to "google". If more than '
                   'one search engine is specified, cycle through when connection fails too much.'
     )
     parser.add_option(
@@ -74,14 +74,14 @@ def ParseOptions():
         type    = 'int',
         default = 10,
         metavar = 'NUM',
-        help    = 'The number of websites to visit from the search results.'
+        help    = 'The number of websites to visit.'
     )
     parser.add_option(
         '-p', '--no-progress-bar',
         dest    = 'no_progress',
         action  = 'store_false',
         default = True,
-        help    = 'Disable download progress bar.'
+        help    = 'Disable progress bar for downloads.'
     )
     parser.add_option(
         '-l', '--image-link',
@@ -174,16 +174,17 @@ def ParseOptions():
     parser.add_option(
         '-t', '--timeout',
         dest    = 'timeout',
+        metavar = 'TIMEOUT',
         type    = 'int',
         default = 10,
         help    = 'Set connection timeout.'
     )
     parser.add_option(
-        '-q', '--more-lines',
+        '-q', '--less-lines',
         dest    = 'more_lines',
         action  = 'store_true',
         default = False,
-        help    = 'Wipe out download progress after download has finished'
+        help    = 'Wipe download progress bar after download has finished'
     )
 
     opts, args = parser.parse_args(sys.argv[1:])
