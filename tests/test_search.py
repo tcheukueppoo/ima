@@ -20,8 +20,14 @@ def next_back(s):
     f3 = s.next()
     assert r3 == f3
 
-def test_google():
+def test_next_back_google():
     s.set_engine('google')
+    s.set_query('What is wikipedia')
+    next_back(s)
+
+
+def test_next_back_duckduckgo():
+    s.set_engine('duckduckgo')
     s.set_query('What is wikipedia')
     next_back(s)
 
