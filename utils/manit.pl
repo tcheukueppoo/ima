@@ -68,7 +68,7 @@ sub output_synopsis {
    my %options  = @_;
    my $synopsis = join ' ', map '[ ' . ( $_ =~ s/ / | /r ) . ( $options{$_}{v} // '' ) =~ s/(.+)/ **$1**/r . ' ]', keys %options;
 
-   printf "# SYNOPSIS\n\n";
+   printf "## SYNOPSIS\n\n";
    printf "**ima** %s **QUERY** [..QUERY]\n\n", $synopsis;
 }
 
@@ -93,10 +93,14 @@ sub output_file {
 output_file('./utils/heading.md');
 
 my %options = get_options();
-output_synopsis( %options );
-output_doc_options( %options );
+
+output_synopsis(%options);
 
 output_file('./utils/body.md');
+
+output_doc_options(%options);
+
+output_file('./utils/examples.md');
 output_authors();
 output_file('./utils/issues.md');
 output_file('./utils/license.md');
